@@ -1,0 +1,13 @@
+__pycache__/
+dataSet/
+dataSet2/
+dataset_all/
+dataset_sq/
+dataset_without_back/
+tflog/
+.idea/
+tmp/
+results/
+url.txt
+*.h5
+datasets
