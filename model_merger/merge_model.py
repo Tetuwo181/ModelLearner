@@ -9,6 +9,7 @@ from network_model.model_base.tempload import builder_for_merge
 
 Merge = Union[Add, Subtract, Multiply, Average, Minimum, Maximum, Concatenate, Dot]
 Loss = Union[str, Callable[[Tensor, Tensor], Tensor]]
+TrainableModelIndex = Union[bool, int]
 
 
 class ModelMerger:
@@ -26,6 +27,16 @@ class ModelMerger:
         self.__metrics = metrics
         self.__merge_obj = merge_obj
         self.__output_activation = output_activation
+
+    @staticmethod
+    def set_model_trainable(base_model: keras.engine.training.Model,
+                            trainable: TrainableModelIndex) -> keras.engine.training.Model:
+        if type(trainable) is bool:
+            base_model.trainable = trainable
+            return base_model
+        for layer in base_model.layers[:trainable]:
+            layer.trainable = False
+        return base_model
 
     @property
     def optimizer(self) -> Optimizer:
@@ -88,15 +99,15 @@ class ModelMerger:
 
     def merge_models_from_model_files(self,
                                       h5_paths: List[Union[str, Tuple[str, str]]],
-                                      trainable_model: Union[bool, List[bool]] = True,
+                                      trainable_model: Union[TrainableModelIndex, List[TrainableModelIndex]] = True,
                                       output_num: Optional[int] = None,
                                       middle_layer_neuro_nums: Optional[List[Tuple[int, str]]] = None,
                                       merge_per_model_name: str = 'model') -> keras.engine.training.Model:
         models = [builder_for_merge(h5_path) for h5_path in h5_paths]
-        are_trainable_models = [trainable_model for _ in h5_paths] if type(trainable_model) is bool else trainable_model
+        are_trainable_models = trainable_model if type(trainable_model) is list else [trainable_model for _ in h5_paths]
         for index, (model, is_trainable) in enumerate(zip(models, are_trainable_models)):
             model._name = merge_per_model_name + str(index)
-            model.trainable = is_trainable
+            self.set_model_trainable(model, is_trainable)
         return self.merge_models(models, output_num, middle_layer_neuro_nums)
 
 
