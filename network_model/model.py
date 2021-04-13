@@ -7,6 +7,7 @@ from typing import List
 from typing import Tuple
 from typing import Optional
 from typing import Union
+from typing import Callable
 import os
 from datetime import datetime
 from DataIO import data_loader as dl
@@ -21,7 +22,8 @@ class Model(AbstractModel):
                  callbacks: Optional[List[keras.callbacks.Callback]] = None,
                  monitor: str = "",
                  will_save_h5: bool = True,
-                 preprocess_for_model: ModelPreProcessor = None):
+                 preprocess_for_model: ModelPreProcessor = None,
+                 after_learned_process: Optional[Callable[[None], None]] = None):
         """
 
         :param model_base: kerasで構築したモデル
@@ -30,6 +32,7 @@ class Model(AbstractModel):
         :param monitor: モデルの途中で記録するパラメータ　デフォルトだと途中で記録しない
         :param will_save_h5: 途中モデル読み込み時に旧式のh5ファイルで保存するかどうか　デフォルトだと保存する
         :param preprocess_for_model: モデル学習前にモデルに対してする処理
+        :param after_learned_process: モデル学習後の後始末
         """
         self.__model = model_base
         super().__init__(model_base.input.shape.as_list(),
@@ -37,7 +40,8 @@ class Model(AbstractModel):
                          callbacks,
                          monitor,
                          will_save_h5,
-                         preprocess_for_model)
+                         preprocess_for_model,
+                         after_learned_process)
 
     @property
     def model(self):
@@ -66,6 +70,7 @@ class Model(AbstractModel):
             self.__model.fit(data, label_set, epochs=epochs, callbacks=callbacks)
         else:
             self.__model.fit(data, label_set, epochs=epochs, validation_data=validation_data, callbacks=callbacks)
+        self.after_learned_process()
         return self
 
     def fit_generator(self,
@@ -110,6 +115,7 @@ class Model(AbstractModel):
                                               epochs=epochs,
                                               validation_data=validation_data,
                                               callbacks=callbacks)
+        self.after_learned_process()
         return self
 
     def predict(self, data: np.ndarray) -> Tuple[np.array, np.array]:
@@ -189,7 +195,8 @@ class ModelForManyData(AbstractModel):
                  callbacks: Optional[List[keras.callbacks.Callback]] = None,
                  monitor: str = "",
                  will_save_h5: bool = True,
-                 preprocess_for_model: ModelPreProcessor = None):
+                 preprocess_for_model: ModelPreProcessor = None,
+                 after_learned_process: Optional[Callable[[None], None]] = None):
         """
 
         :param model_base: kerasで構築したモデル
@@ -198,6 +205,7 @@ class ModelForManyData(AbstractModel):
         :param monitor: モデルの途中で記録するパラメータ　デフォルトだと途中で記録しない
         :param will_save_h5: 途中モデル読み込み時に旧式のh5ファイルで保存するかどうか　デフォルトだと保存する
         :param preprocess_for_model: モデル学習前にモデルに対してする処理
+        :param after_learned_process: モデル学習後の後始末
         """
         self.__model = model_base
         super().__init__(model_base.input.shape.as_list(),
@@ -205,7 +213,8 @@ class ModelForManyData(AbstractModel):
                          callbacks,
                          monitor,
                          will_save_h5,
-                         preprocess_for_model)
+                         preprocess_for_model,
+                         after_learned_process)
 
     @property
     def model(self):
@@ -248,6 +257,7 @@ class ModelForManyData(AbstractModel):
                                                         epochs=epochs,
                                                         validation_data=validation_data,
                                                         callbacks=callbacks)
+        self.after_learned_process()
         return self
 
     def test(self,

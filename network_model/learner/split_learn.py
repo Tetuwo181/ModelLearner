@@ -1,6 +1,6 @@
 import os
 
-from typing import Tuple, List
+from typing import Tuple, List, Callable
 from typing import Optional
 import keras.callbacks
 from keras.preprocessing.image import ImageDataGenerator
@@ -24,7 +24,8 @@ class ModelLearner(AbsModelLearner):
                  train_dir_name: str = "train",
                  validation_name: str = "validation",
                  will_save_h5: bool = True,
-                 preprocess_for_model: ModelPreProcessor = None):
+                 preprocess_for_model: ModelPreProcessor = None,
+                 after_learned_process: Optional[Callable[[None], None]] = None):
         """
 
         :param model_builder: モデル生成器
@@ -38,6 +39,7 @@ class ModelLearner(AbsModelLearner):
         :param validation_name: 検証する際のテストデータのディレクトリ名
         :param will_save_h5: 途中モデル読み込み時に旧式のh5ファイルで保存するかどうか　デフォルトだと保存する
         :param preprocess_for_model: メインの学習前にモデルに対して行う前処理
+        :param after_learned_process: モデル学習後の後始末
         """
 
         super().__init__(model_builder,
@@ -50,7 +52,8 @@ class ModelLearner(AbsModelLearner):
                          train_dir_name,
                          validation_name,
                          will_save_h5,
-                         preprocess_for_model)
+                         preprocess_for_model,
+                         after_learned_process)
 
     def build_model(self,
                     tmp_model_path: str = None,
@@ -61,14 +64,16 @@ class ModelLearner(AbsModelLearner):
                                        callbacks=self.callbacks,
                                        monitor=monitor,
                                        will_save_h5=self.will_save_h5,
-                                       preprocess_for_model=self.preprocess_for_model)
+                                       preprocess_for_model=self.preprocess_for_model,
+                                       after_learned_process=self.after_learned_process)
 
         return md.ModelForManyData(self.model_builder(tmp_model_path),
                                    self.class_list,
                                    callbacks=self.callbacks,
                                    monitor=monitor,
                                    will_save_h5=self.will_save_h5,
-                                   preprocess_for_model=self.preprocess_for_model)
+                                   preprocess_for_model=self.preprocess_for_model,
+                                   after_learned_process=self.after_learned_process)
 
     def train_with_validation_from_model(self,
                                          model: md.ModelForManyData,

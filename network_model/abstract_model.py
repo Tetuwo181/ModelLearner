@@ -21,7 +21,8 @@ class AbstractModel(ABC):
                  callbacks: Optional[List[keras.callbacks.Callback]] = None,
                  monitor: str = "",
                  will_save_h5: bool = True,
-                 preprocess_for_model: ModelPreProcessor = None):
+                 preprocess_for_model: ModelPreProcessor = None,
+                 after_learned_process: Optional[Callable[[None], None]] = None):
         """
 
          :param input_shape: モデルの入力層の形を表すタプル
@@ -30,6 +31,7 @@ class AbstractModel(ABC):
          :param monitor: モデルの途中で記録するパラメータ　デフォルトだと途中で記録しない
          :param will_save_h5: 途中モデル読み込み時に旧式のh5ファイルで保存するかどうか　デフォルトだと保存する
          :param preprocess_for_model: モデル学習前にモデルに対してする処理
+         :param after_learned_process: モデル学習後の後始末
          """
         self.__class_set = class_set
         self.__input_shape = input_shape
@@ -38,6 +40,7 @@ class AbstractModel(ABC):
         self.__monitor = monitor
         self.__will_save_h5 = will_save_h5
         self.__preprocess_for_model = preprocess_for_model
+        self.__after_learned_process = after_learned_process
 
     @property
     @abstractmethod
@@ -63,6 +66,11 @@ class AbstractModel(ABC):
     @property
     def preprocess_for_model(self) -> ModelPreProcessor:
         return self.__preprocess_for_model
+
+    def after_learned_process(self):
+        if self.__after_learned_process is None:
+            return
+        return self.__after_learned_process()
 
     def get_callbacks(self, temp_best_path: str, save_weights_only: bool = False):
         if self.will_record_best_model is None or temp_best_path == "":
@@ -148,9 +156,8 @@ class AbstractModel(ABC):
                dir_path: str = os.path.join(os.getcwd(), "result"),
                model_name: str = "model",
                normalize_type: Optional[dl.NormalizeType] = None):
-        now_result_dir_name = result_dir_name + datetime.now().strftime("%Y%m%d%H%M%S")
-        self.record_model(now_result_dir_name, dir_path, model_name)
-        self.record_conf_json(now_result_dir_name, dir_path, normalize_type, model_name)
+        self.record_model(result_dir_name, dir_path, model_name)
+        self.record_conf_json(result_dir_name, dir_path, normalize_type, model_name)
 
     def run_preprocess_model(self, model: keras.engine.training.Model) -> keras.engine.training.Model:
         if self.preprocess_for_model is None:

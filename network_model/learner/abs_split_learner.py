@@ -1,7 +1,7 @@
 import os
 import shutil
 import random
-from typing import Tuple, List, Union
+from typing import Tuple, List, Union, Callable
 from typing import Optional
 import keras.callbacks
 from keras.preprocessing.image import ImageDataGenerator
@@ -111,7 +111,8 @@ class AbsModelLearner(ABC):
                  train_dir_name: str = "train",
                  validation_name: str = "validation",
                  will_save_h5: bool = True,
-                 preprocess_for_model: ModelPreProcessor = None):
+                 preprocess_for_model: ModelPreProcessor = None,
+                 after_learned_process: Optional[Callable[[None], None]] = None):
         """
 
         :param model_builder: モデル生成器
@@ -125,6 +126,7 @@ class AbsModelLearner(ABC):
         :param validation_name: 検証する際のテストデータのディレクトリ名
         :param will_save_h5: 途中モデル読み込み時に旧式のh5ファイルで保存するかどうか　デフォルトだと保存する
         :param preprocess_for_model: メインの学習前にモデルに対して行う前処理
+        :param after_learned_process: モデル学習後の後始末
         """
 
         self.__model_builder = model_builder
@@ -138,10 +140,16 @@ class AbsModelLearner(ABC):
         self.__validation_name = validation_name
         self.__will_save_h5 = will_save_h5
         self.__preprocess_for_model = preprocess_for_model
+        self.__after_learned_process = after_learned_process
 
     @property
     def preprocess_for_model(self):
         return self.__preprocess_for_model
+
+
+    @property
+    def after_learned_process(self):
+        return self.__after_learned_process
 
     @property
     def model_builder(self) -> ModelBuilder:
