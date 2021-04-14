@@ -298,7 +298,6 @@ class ModelForManyData(AbstractModel):
                            validation_steps=validation_steps,
                            temp_best_path=os.path.join(write_dir_path, save_tmp_name),
                            save_weights_only=save_weights_only)
-        now_result_dir_name = result_dir_name + datetime.now().strftime("%Y%m%d%H%M%S")
-        self.record_model(now_result_dir_name, dir_path, model_name)
-        self.record_conf_json(now_result_dir_name, dir_path, normalize_type, model_name)
+        self.record_model(result_dir_name, dir_path, model_name)
+        self.record_conf_json(result_dir_name, dir_path, normalize_type, model_name)
 
