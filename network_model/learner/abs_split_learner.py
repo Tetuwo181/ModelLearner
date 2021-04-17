@@ -241,8 +241,8 @@ class AbsModelLearner(ABC):
                                          result_name: str = "result",
                                          model_name: str = "model",
                                          save_weights_only: bool = False) -> LearnModel:
-        train_generator, train_data_num, test_generator, test_data_num = \
-            self.build_validation_generator_and_get_data_num(train_dir, validation_dir, batch_size)
+        train_generator, train_steps_per_epoch, test_generator, test_steps_per_epoch = \
+            self.build_validation_generator_and_get_steps_per_epoch(train_dir, validation_dir, batch_size)
 
         # テスト開始
         model.test(train_generator,
@@ -250,8 +250,8 @@ class AbsModelLearner(ABC):
                    test_generator,
                    normalize_type=self.normalize_type,
                    result_dir_name=result_name,
-                   steps_per_epoch=(train_data_num//batch_size),
-                   validation_steps=(test_data_num//batch_size),
+                   steps_per_epoch=train_steps_per_epoch,
+                   validation_steps=test_steps_per_epoch,
                    dir_path=result_dir_path,
                    model_name=model_name+"val",
                    save_weights_only=save_weights_only
@@ -402,13 +402,11 @@ class AbsModelLearner(ABC):
                                                       save_weights_only)
                 for model, bagging_train_dir, result_model_name in zip(model_base, bagging_train_dirs, result_names)]
 
-    def build_validation_generator_and_get_data_num(self,
-                                                    train_dir: str,
-                                                    validation_dir: str,
-                                                    batch_size=32):
+    def build_validation_generator_and_get_steps_per_epoch(self,
+                                                           train_dir: str,
+                                                           validation_dir: str,
+                                                           batch_size=32):
         train_generator = self.build_train_generator(batch_size, train_dir)
         test_generator = self.build_test_generator(batch_size, validation_dir)
-        train_data_num = count_data_num_in_dir(train_dir)
-        test_data_num = count_data_num_in_dir(validation_dir)
-        return train_generator, train_data_num, test_generator, test_data_num
+        return train_generator, len(train_generator), test_generator, len(test_generator)
 
