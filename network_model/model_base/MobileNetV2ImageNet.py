@@ -26,14 +26,17 @@ def builder(
     """
     mobile_net = MobileNetV2(include_top=False, alpha=0.75, weights="imagenet", input_shape=(img_size, img_size, channels))
     h = Flatten()(mobile_net.output)
-    model_output = Dense(class_num, activation="softmax")(h)
+    output_num = class_num if class_num > 2 else 1
+    use_loss = "categorical_crossentropy" if class_num > 2 else "binary_crossentropy"
+    output_activation = "softmax" if class_num > 2 else "sigmoid"
+    model_output = Dense(output_num, activation=output_activation)(h)
     model = Model(mobile_net.input, model_output)
 
     # モデルの概要を表示
     model.summary()
 
     # モデルをコンパイル
-    model.compile(loss="categorical_crossentropy", optimizer=optimizer, metrics=['accuracy'])
+    model.compile(loss=use_loss, optimizer=optimizer, metrics=['accuracy'])
 
     return model
 

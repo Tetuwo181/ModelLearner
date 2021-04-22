@@ -25,7 +25,8 @@ class ModelLearner(AbsModelLearner):
                  validation_name: str = "validation",
                  will_save_h5: bool = True,
                  preprocess_for_model: ModelPreProcessor = None,
-                 after_learned_process: Optional[Callable[[None], None]] = None):
+                 after_learned_process: Optional[Callable[[None], None]] = None,
+                 class_mode: Optional[str] = None):
         """
 
         :param model_builder: モデル生成器
@@ -40,6 +41,7 @@ class ModelLearner(AbsModelLearner):
         :param will_save_h5: 途中モデル読み込み時に旧式のh5ファイルで保存するかどうか　デフォルトだと保存する
         :param preprocess_for_model: メインの学習前にモデルに対して行う前処理
         :param after_learned_process: モデル学習後の後始末
+        :param class_mode: flow_from_directoryのクラスモード
         """
 
         super().__init__(model_builder,
@@ -53,7 +55,8 @@ class ModelLearner(AbsModelLearner):
                          validation_name,
                          will_save_h5,
                          preprocess_for_model,
-                         after_learned_process)
+                         after_learned_process,
+                         class_mode)
 
     def build_model(self,
                     tmp_model_path: str = None,

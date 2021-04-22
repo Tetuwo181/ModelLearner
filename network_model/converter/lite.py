@@ -24,6 +24,7 @@ def convert_tflite_int8_model(input_model_path: str):
 
 def convert_tflite_float16_model(input_model_path: str):
     converter = build_base_converter(input_model_path)
+    converter.optimizations = [tf.lite.Optimize.DEFAULT]
     converter.target_spec.supported_ops = [tf.compat.v1.lite.constants.FLOAT16]
 
     return converter.convert()

@@ -112,7 +112,8 @@ class AbsModelLearner(ABC):
                  validation_name: str = "validation",
                  will_save_h5: bool = True,
                  preprocess_for_model: ModelPreProcessor = None,
-                 after_learned_process: Optional[Callable[[None], None]] = None):
+                 after_learned_process: Optional[Callable[[None], None]] = None,
+                 class_mode: Optional[str] = None):
         """
 
         :param model_builder: モデル生成器
@@ -127,6 +128,7 @@ class AbsModelLearner(ABC):
         :param will_save_h5: 途中モデル読み込み時に旧式のh5ファイルで保存するかどうか　デフォルトだと保存する
         :param preprocess_for_model: メインの学習前にモデルに対して行う前処理
         :param after_learned_process: モデル学習後の後始末
+        :param class_mode: flow_from_directoryのクラスモード
         """
 
         self.__model_builder = model_builder
@@ -141,11 +143,11 @@ class AbsModelLearner(ABC):
         self.__will_save_h5 = will_save_h5
         self.__preprocess_for_model = preprocess_for_model
         self.__after_learned_process = after_learned_process
+        self.__class_mode = class_mode
 
     @property
     def preprocess_for_model(self):
         return self.__preprocess_for_model
-
 
     @property
     def after_learned_process(self):
@@ -203,6 +205,14 @@ class AbsModelLearner(ABC):
     def validation_name(self):
         return self.__validation_name
 
+    @property
+    def class_mode(self):
+        if self.__class_mode is not None:
+            return self.__class_mode
+        if self.class_num > 2:
+            return "categorical"
+        return "binary"
+
     @staticmethod
     def get_train_and_test_num(base_dir: str):
         return count_data_num_in_dir(os.path.join(base_dir, 'train')), \
@@ -213,14 +223,14 @@ class AbsModelLearner(ABC):
                                                                 target_size=self.image_size,
                                                                 batch_size=batch_size,
                                                                 classes=self.class_list,
-                                                                class_mode="categorical")
+                                                                class_mode=self.class_mode)
 
     def build_test_generator(self, batch_size, test_data_dir: str):
         return self.__test_image_generator.flow_from_directory(test_data_dir,
                                                                target_size=self.image_size,
                                                                batch_size=batch_size,
                                                                classes=self.class_list,
-                                                               class_mode="categorical")
+                                                               class_mode=self.class_mode)
 
     @abstractmethod
     def build_model(self,
