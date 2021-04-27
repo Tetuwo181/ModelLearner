@@ -10,7 +10,7 @@ from network_model.abstract_model import ModelPreProcessor
 from network_model.model_builder import ModelBuilder
 from DataIO.data_loader import count_data_num_in_dir
 from DataIO.data_loader import NormalizeType
-from DataIO.data_choicer import BaggingDataPicker
+from DataIO.data_choicer import BaggingDataPicker, ChoiceDataNum
 from abc import ABC, abstractmethod
 from network_model.model_for_distillation import ModelForDistillation
 
@@ -371,7 +371,7 @@ class AbsModelLearner(ABC):
     def train_by_bagging(self,
                          dataset_root_dir: str,
                          result_dir_path: str,
-                         pick_data_num: Union[int, List[int]],
+                         pick_data_num: Union[ChoiceDataNum, List[ChoiceDataNum]],
                          build_dataset_num: int = 5,
                          batch_size=32,
                          epoch_num: int = 20,
