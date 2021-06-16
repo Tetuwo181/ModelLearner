@@ -1,0 +1,93 @@
+from keras.preprocessing.image import ImageDataGenerator
+from generator.module.directory import DirectoryIteratorWithPreprocess
+from typing import Callable, Optional
+import numpy as np
+
+
+class ImageDataGeneratorWithPreprocess(ImageDataGenerator):
+
+    def __init__(self,
+                 x_preprocess: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+                 y_preprocess: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+                 featurewise_center=False,
+                 samplewise_center=False,
+                 featurewise_std_normalization=False,
+                 samplewise_std_normalization=False,
+                 zca_whitening=False,
+                 zca_epsilon=1e-6,
+                 rotation_range=0,
+                 width_shift_range=0.,
+                 height_shift_range=0.,
+                 brightness_range=None,
+                 shear_range=0.,
+                 zoom_range=0.,
+                 channel_shift_range=0.,
+                 fill_mode='nearest',
+                 cval=0.,
+                 horizontal_flip=False,
+                 vertical_flip=False,
+                 rescale=None,
+                 preprocessing_function=None,
+                 data_format=None,
+                 validation_split=0.0,
+                 dtype=None):
+
+        super().__init__(featurewise_center,
+                         samplewise_center,
+                         featurewise_std_normalization,
+                         samplewise_std_normalization,
+                         zca_whitening,
+                         zca_epsilon,
+                         rotation_range,
+                         width_shift_range,
+                         height_shift_range,
+                         brightness_range,
+                         shear_range,
+                         zoom_range,
+                         channel_shift_range,
+                         fill_mode,
+                         cval,
+                         horizontal_flip,
+                         vertical_flip,
+                         rescale,
+                         preprocessing_function,
+                         data_format,
+                         validation_split,
+                         dtype)
+
+        self.__x_preprocess = x_preprocess
+        self.__y_preprocess = y_preprocess
+
+    def flow_from_directory(self,
+                            directory,
+                            target_size=(256, 256),
+                            color_mode='rgb',
+                            classes=None,
+                            class_mode='categorical',
+                            batch_size=32,
+                            shuffle=True,
+                            seed=None,
+                            save_to_dir=None,
+                            save_prefix='',
+                            save_format='png',
+                            follow_links=False,
+                            subset=None,
+                            interpolation='nearest'):
+        return DirectoryIteratorWithPreprocess(directory,
+                                               self,
+                                               target_size=target_size,
+                                               color_mode=color_mode,
+                                               classes=classes,
+                                               class_mode=class_mode,
+                                               data_format=self.data_format,
+                                               batch_size=batch_size,
+                                               shuffle=shuffle,
+                                               seed=seed,
+                                               save_to_dir=save_to_dir,
+                                               save_prefix=save_prefix,
+                                               save_format=save_format,
+                                               follow_links=follow_links,
+                                               subset=subset,
+                                               interpolation=interpolation,
+                                               x_preprocess=self.__x_preprocess,
+                                               y_preprocess=self.__y_preprocess)

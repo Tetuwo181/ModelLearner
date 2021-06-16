@@ -245,18 +245,18 @@ class ModelForManyData(AbstractModel):
         print("fit generator")
         self.__model = self.run_preprocess_model(self.__model)
         if validation_data is None:
-            self.__history = self.__model.fit_generator(image_generator,
-                                                        steps_per_epoch=steps_per_epoch,
-                                                        epochs=epochs,
-                                                        callbacks=callbacks)
+            self.__history = self.__model.fit(image_generator,
+                                              steps_per_epoch=steps_per_epoch,
+                                              epochs=epochs,
+                                              callbacks=callbacks)
         else:
             print('epochs', epochs)
-            self.__history = self.__model.fit_generator(image_generator,
-                                                        steps_per_epoch=steps_per_epoch,
-                                                        validation_steps=validation_steps,
-                                                        epochs=epochs,
-                                                        validation_data=validation_data,
-                                                        callbacks=callbacks)
+            self.__history = self.__model.fit(image_generator,
+                                              steps_per_epoch=steps_per_epoch,
+                                              validation_steps=validation_steps,
+                                              epochs=epochs,
+                                              validation_data=validation_data,
+                                              callbacks=callbacks)
         self.after_learned_process()
         return self
 
