@@ -3,6 +3,7 @@ import keras.engine.training
 from util_types import types_of_loco
 import importlib
 from keras.optimizers import Optimizer, SGD
+from model_merger.merge_model import ModelMerger
 
 
 def builder(
@@ -23,3 +24,16 @@ def builder(
     """
     model_module = importlib.import_module("network_model.model_base."+model_name)
     return model_module.builder(class_num, img_size, channels, optimizer)
+
+
+def builder_with_merge(
+        base_model_num: int,
+        model_merger: ModelMerger,
+        class_num: int,
+        img_size: types_of_loco.input_img_size = 28,
+        channels: int = 3,
+        optimizer: Optimizer = SGD(),
+        model_name: str = "model1",
+) -> keras.engine.training.Model:
+    models = [builder(class_num, img_size, channels, optimizer,  model_name) for _ in range(base_model_num)]
+    return model_merger.merge_models_separately_input(models, class_num)

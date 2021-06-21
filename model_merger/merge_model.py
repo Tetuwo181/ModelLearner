@@ -97,6 +97,35 @@ class ModelMerger:
         model.compile(loss=self.loss, optimizer=self.optimizer, metrics=self.metrics)
         return model
 
+    def merge_models_separately_input(self,
+                                      models: List[keras.engine.training.Model],
+                                      output_num: Optional[int] = None,
+                                      middle_layer_neuro_nums: Optional[List[Tuple[int, str]]] = None) -> keras.engine.training.Model:
+        input_layer = [model.input for model in models]
+        model_outputs = [model.output for model in models]
+        output_class_num = models[0].output_shape[-1] if output_num is None else output_num
+        added_model_output = self.merge(model_outputs)
+        if middle_layer_neuro_nums is None:
+            output = Dense(output_class_num, activation=self.output_activation)(added_model_output)
+            model = Model(input_layer, output)
+            # モデルの概要を表示
+            model.summary()
+
+            # モデルをコンパイル
+            model.compile(loss=self.loss, optimizer=self.optimizer, metrics=self.metrics)
+            return model
+        add_layers = middle_layer_neuro_nums + [(output_class_num, self.output_activation)]
+        print(add_layers)
+        output = Dense(add_layers[0][0], activation=add_layers[0][1])(added_model_output)
+        for params in add_layers[1:]:
+            print(params)
+            output = Dense(params[0], activation=params[1])(output)
+        model = Model(input_layer, output)
+        model.summary()
+        # モデルをコンパイル
+        model.compile(loss=self.loss, optimizer=self.optimizer, metrics=self.metrics)
+        return model
+
     def merge_models_from_model_files(self,
                                       h5_paths: List[Union[str, Tuple[str, str]]],
                                       trainable_model: Union[TrainableModelIndex, List[TrainableModelIndex]] = True,
