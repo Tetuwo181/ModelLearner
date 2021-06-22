@@ -7,7 +7,10 @@ from util_types import types_of_loco
 from network_model.model_base import tempload
 from network_model.distillation.distillation_model_builder import DistllationModelIncubator
 from keras.optimizers import Optimizer, SGD
-from network_model.build_model import builder
+from network_model.build_model import builder, builder_with_merge
+from model_merger.merge_model import ModelMerger
+from keras.layers import Concatenate
+
 
 ModelBuilder = Union[Callable[[int], keras.engine.training.Model],
                      Callable[[Union[str, Tuple[str, str]]], keras.engine.training.Model],
@@ -44,3 +47,17 @@ def build_wrapper(img_size: types_of_loco.input_img_size = 28,
         return lambda load_path: tempload.builder(load_path, optimizer)
     return lambda class_num: builder(class_num, img_size, channels, optimizer, model_name)
 
+
+def build_with_merge_wrapper(base_model_num:int,
+                             img_size: types_of_loco.input_img_size = 28,
+                             channels: int = 3,
+                             model_name: str = "model1",
+                             optimizer: Optimizer = SGD(),
+                             model_merger: ModelMerger = ModelMerger(Concatenate)) -> ModelBuilder:
+    return lambda class_num: builder_with_merge(base_model_num,
+                                                model_merger,
+                                                class_num,
+                                                img_size,
+                                                channels,
+                                                optimizer,
+                                                model_name)

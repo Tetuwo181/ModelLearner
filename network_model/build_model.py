@@ -3,7 +3,9 @@ import keras.engine.training
 from util_types import types_of_loco
 import importlib
 from keras.optimizers import Optimizer, SGD
-from model_merger.merge_model import ModelMerger
+from model_merger.merge_model import ModelMerger, TrainableModelIndex
+from typing import List, Tuple, Union, Optional
+from keras.layers import Concatenate
 
 
 def builder(
@@ -37,3 +39,18 @@ def builder_with_merge(
 ) -> keras.engine.training.Model:
     models = [builder(class_num, img_size, channels, optimizer,  model_name) for _ in range(base_model_num)]
     return model_merger.merge_models_separately_input(models, class_num)
+
+
+def build_by_h5files(
+                     h5_paths: List[Union[str, Tuple[str, str]]],
+                     trainable_model: Union[TrainableModelIndex, List[TrainableModelIndex]] = True,
+                     output_num: Optional[int] = None,
+                     middle_layer_neuro_nums: Optional[List[Tuple[int, str]]] = None,
+                     merge_per_model_name: str = 'model',
+                     model_merger: ModelMerger = ModelMerger(Concatenate)
+) -> keras.engine.training.Model:
+    return model_merger.merge_models_from_model_files(h5_paths,
+                                                      trainable_model,
+                                                      output_num,
+                                                      middle_layer_neuro_nums,
+                                                      merge_per_model_name)
