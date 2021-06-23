@@ -48,7 +48,7 @@ def build_wrapper(img_size: types_of_loco.input_img_size = 28,
     return lambda class_num: builder(class_num, img_size, channels, optimizer, model_name)
 
 
-def build_with_merge_wrapper(base_model_num:int,
+def build_with_merge_wrapper(base_model_num: int,
                              img_size: types_of_loco.input_img_size = 28,
                              channels: int = 3,
                              model_name: str = "model1",
