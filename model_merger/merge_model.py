@@ -101,6 +101,7 @@ class ModelMerger:
                                       models: List[keras.engine.training.Model],
                                       output_num: Optional[int] = None,
                                       middle_layer_neuro_nums: Optional[List[Tuple[int, str]]] = None) -> keras.engine.training.Model:
+        models = add_layer_name_for_models(models)
         input_layer = [model.input for model in models]
         model_outputs = [model.output for model in models]
         output_class_num = models[0].output_shape[-1] if output_num is None else output_num
@@ -140,3 +141,13 @@ class ModelMerger:
         return self.merge_models(models, output_num, middle_layer_neuro_nums)
 
 
+def add_layer_name_to_index(model: keras.engine.training.Model, index: int):
+    for layer in model.layers:
+        layer._name = layer.name + "_" + str(index)
+    return model
+
+
+def add_layer_name_for_models(models: List[keras.engine.training.Model]):
+    for index, model in enumerate(models):
+        add_layer_name_to_index(model, index)
+    return models

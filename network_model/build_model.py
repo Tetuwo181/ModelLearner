@@ -47,7 +47,7 @@ def build_by_h5files(
                      output_num: Optional[int] = None,
                      middle_layer_neuro_nums: Optional[List[Tuple[int, str]]] = None,
                      merge_per_model_name: str = 'model',
-                     model_merger: ModelMerger = ModelMerger(Concatenate)
+                     model_merger: ModelMerger = ModelMerger(Concatenate())
 ) -> keras.engine.training.Model:
     return model_merger.merge_models_from_model_files(h5_paths,
                                                       trainable_model,

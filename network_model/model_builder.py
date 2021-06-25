@@ -53,7 +53,7 @@ def build_with_merge_wrapper(base_model_num: int,
                              channels: int = 3,
                              model_name: str = "model1",
                              optimizer: Optimizer = SGD(),
-                             model_merger: ModelMerger = ModelMerger(Concatenate)) -> ModelBuilder:
+                             model_merger: ModelMerger = ModelMerger(Concatenate())) -> ModelBuilder:
     return lambda class_num: builder_with_merge(base_model_num,
                                                 model_merger,
                                                 class_num,

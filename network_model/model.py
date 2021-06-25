@@ -35,7 +35,8 @@ class Model(AbstractModel):
         :param after_learned_process: モデル学習後の後始末
         """
         self.__model = model_base
-        super().__init__(model_base.input.shape.as_list(),
+        shape = model_base.input[0].shape.as_list() if type(model_base.input) is list else model_base.input.shape.as_list()
+        super().__init__(shape,
                          class_set,
                          callbacks,
                          monitor,
@@ -208,7 +209,9 @@ class ModelForManyData(AbstractModel):
         :param after_learned_process: モデル学習後の後始末
         """
         self.__model = model_base
-        super().__init__(model_base.input.shape.as_list(),
+        self.__model = model_base
+        shape = model_base.input[0].shape.as_list() if type(model_base.input) is list else model_base.input.shape.as_list()
+        super().__init__(shape,
                          class_set,
                          callbacks,
                          monitor,
