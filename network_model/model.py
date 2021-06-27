@@ -1,4 +1,5 @@
 import keras.callbacks
+from keras.callbacks import CallbackList, ProgbarLogger, BaseLogger, History
 from keras.preprocessing.image import ImageDataGenerator
 import numpy as np
 from network_model.generator import DataLoaderFromPaths
@@ -218,6 +219,45 @@ class ModelForManyData(AbstractModel):
                          will_save_h5,
                          preprocess_for_model,
                          after_learned_process)
+
+    @property
+    def callbacks_metric(self):
+        out_labels = self.model.metrics_names
+        return ['val_' + n for n in out_labels]
+
+    @property
+    def base_logger(self):
+        return BaseLogger(stateful_metrics=self.model.stateful_metric_names)
+
+    @property
+    def progbar_logger(self):
+        return ProgbarLogger(count_mode='steps', stateful_metrics=self.model.stateful_metric_names)
+
+    def get_callbacks_for_preprocess_input(self, temp_best_path, save_weights_only= False):
+        base_callbacks = self.get_callbacks(temp_best_path, save_weights_only)
+        if base_callbacks is None or base_callbacks == []:
+            return [self.model.history]
+        return base_callbacks + [self.model.history]
+
+    def build_callbacks_for_preprocess_input(self,
+                                             epochs: int,
+                                             temp_best_path,
+                                             steps_per_epoch: Optional[int] = None,
+                                             save_weights_only=False):
+        self.__model.history = History()
+        build_callbacks = [self.base_logger, self.progbar_logger]
+        raw_callbacks = build_callbacks + self.get_callbacks_for_preprocess_input(temp_best_path, save_weights_only)
+        callbacks = CallbackList(raw_callbacks)
+        callbacks.set_model(self.model)
+        callbacks.set_params({
+            'epochs': epochs,
+            'steps': steps_per_epoch,
+            'verbose': 1,
+            'do_validation': False,
+            'metrics': self.callbacks_metric,
+        })
+        return callbacks
+
 
     @property
     def model(self):

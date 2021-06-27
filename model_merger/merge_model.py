@@ -108,7 +108,7 @@ class ModelMerger:
         added_model_output = self.merge(model_outputs)
         if middle_layer_neuro_nums is None:
             output = Dense(output_class_num, activation=self.output_activation)(added_model_output)
-            model = Model(input_layer, output)
+            model = Model(input_layer, [output])
             # モデルの概要を表示
             model.summary()
 
@@ -121,7 +121,7 @@ class ModelMerger:
         for params in add_layers[1:]:
             print(params)
             output = Dense(params[0], activation=params[1])(output)
-        model = Model(input_layer, output)
+        model = Model(input_layer, [output])
         model.summary()
         # モデルをコンパイル
         model.compile(loss=self.loss, optimizer=self.optimizer, metrics=self.metrics)
