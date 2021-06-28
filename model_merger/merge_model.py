@@ -80,11 +80,7 @@ class ModelMerger:
             output = Dense(output_class_num, activation=self.output_activation)(added_model_output)
             model = Model(input_layer, output)
             # モデルの概要を表示
-            model.summary()
-
-            # モデルをコンパイル
-            model.compile(loss=self.loss, optimizer=self.optimizer, metrics=self.metrics)
-            return model
+            return self.compile(model)
         add_layers = middle_layer_neuro_nums + [(output_class_num, self.output_activation)]
         print(add_layers)
         output = Dense(add_layers[0][0], activation=add_layers[0][1])(added_model_output)
@@ -92,9 +88,14 @@ class ModelMerger:
             print(params)
             output = Dense(params[0], activation=params[1])(output)
         model = Model(input_layer, output)
+        return self.compile(model)
+
+    def compile(self, model):
+        print("compile model type", type(model))
         model.summary()
         # モデルをコンパイル
         model.compile(loss=self.loss, optimizer=self.optimizer, metrics=self.metrics)
+        print("compiled model type:", type(model))
         return model
 
     def merge_models_separately_input(self,
@@ -109,12 +110,7 @@ class ModelMerger:
         if middle_layer_neuro_nums is None:
             output = Dense(output_class_num, activation=self.output_activation)(added_model_output)
             model = Model(input_layer, [output])
-            # モデルの概要を表示
-            model.summary()
-
-            # モデルをコンパイル
-            model.compile(loss=self.loss, optimizer=self.optimizer, metrics=self.metrics)
-            return model
+            return self.compile(model)
         add_layers = middle_layer_neuro_nums + [(output_class_num, self.output_activation)]
         print(add_layers)
         output = Dense(add_layers[0][0], activation=add_layers[0][1])(added_model_output)
@@ -122,10 +118,7 @@ class ModelMerger:
             print(params)
             output = Dense(params[0], activation=params[1])(output)
         model = Model(input_layer, [output])
-        model.summary()
-        # モデルをコンパイル
-        model.compile(loss=self.loss, optimizer=self.optimizer, metrics=self.metrics)
-        return model
+        return self.compile(model)
 
     def merge_models_from_model_files(self,
                                       h5_paths: List[Union[str, Tuple[str, str]]],
