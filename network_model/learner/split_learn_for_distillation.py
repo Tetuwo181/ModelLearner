@@ -82,7 +82,8 @@ class ModelLearnerForDistillation(AbsModelLearner):
                                          epoch_num: int = 20,
                                          result_name: str = "result",
                                          model_name: str = "model",
-                                         save_weights_only: bool = False) -> ModelForDistillation:
+                                         save_weights_only: bool = False,
+                                         will_use_multi_inputs_per_one_image: bool = False) -> ModelForDistillation:
         return super().train_with_validation_from_model(model,
                                                         result_dir_path,
                                                         train_dir,

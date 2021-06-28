@@ -87,7 +87,8 @@ class ModelLearner(AbsModelLearner):
                                          epoch_num: int = 20,
                                          result_name: str = "result",
                                          model_name: str = "model",
-                                         save_weights_only: bool = False) -> md.ModelForManyData:
+                                         save_weights_only: bool = False,
+                                         will_use_multi_inputs_per_one_image: bool = False) -> md.ModelForManyData:
         return super().train_with_validation_from_model(model,
                                                         result_dir_path,
                                                         train_dir,
@@ -96,7 +97,8 @@ class ModelLearner(AbsModelLearner):
                                                         epoch_num,
                                                         result_name,
                                                         model_name,
-                                                        save_weights_only)
+                                                        save_weights_only,
+                                                        will_use_multi_inputs_per_one_image)
 
     def train_with_validation(self,
                               dataset_root_dir: str,
@@ -107,7 +109,8 @@ class ModelLearner(AbsModelLearner):
                               model_name: str = "model",
                               tmp_model_path: str = None,
                               monitor: str = "",
-                              save_weights_only: bool = False) -> md.ModelForManyData:
+                              save_weights_only: bool = False,
+                              will_use_multi_inputs_per_one_image: bool = False) -> md.ModelForManyData:
         """
         検証用データがある場合の学習
         :param dataset_root_dir: データが格納されたディレクトリ
@@ -119,6 +122,7 @@ class ModelLearner(AbsModelLearner):
         :param tmp_model_path: 学習済みのh5ファイルからモデルを読み込んで学習する際のh5ファイルのパス
         :param monitor: モデルの途中で記録するパラメータ　デフォルトだと途中で記録しない
         :param save_weights_only:
+        :param will_use_multi_inputs_per_one_image:
         :return: 学習済みモデル
         """
         model_val = self.build_model(tmp_model_path, monitor)
@@ -131,6 +135,7 @@ class ModelLearner(AbsModelLearner):
                                                      epoch_num,
                                                      result_name,
                                                      model_name,
-                                                     save_weights_only)
+                                                     save_weights_only,
+                                                     will_use_multi_inputs_per_one_image)
 
 
