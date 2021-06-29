@@ -1,6 +1,6 @@
 import keras.callbacks
 from keras.callbacks import CallbackList, ProgbarLogger, BaseLogger, History
-from keras.utils.data_utils import GeneratorEnqueuer
+from keras.utils.data_utils import Sequence, OrderedEnqueuer
 from keras.utils.generic_utils import to_list
 from keras.preprocessing.image import ImageDataGenerator
 import numpy as np
@@ -229,12 +229,11 @@ class ModelForManyData(AbstractModel):
 
     @property
     def base_logger(self):
-        print(type(self.__model))
-        return BaseLogger(stateful_metrics=self.__model.stateful_metric_names)
+        return BaseLogger()
 
     @property
     def progbar_logger(self):
-        return ProgbarLogger(count_mode='steps', stateful_metrics=self.model.stateful_metric_names)
+        return ProgbarLogger(count_mode='steps')
 
     def get_callbacks_for_multi_input(self, temp_best_path, save_weights_only= False):
         base_callbacks = self.get_callbacks(temp_best_path, save_weights_only)
@@ -260,11 +259,12 @@ class ModelForManyData(AbstractModel):
         :return:
         """
         self.__model.history = History()
+        will_validate = bool(validation_data)
+        # self.build_model_functions(will_validate)
         build_callbacks = [self.base_logger, self.progbar_logger]
         raw_callbacks = build_callbacks + self.get_callbacks_for_multi_input(temp_best_path, save_weights_only)
         callbacks = CallbackList(raw_callbacks)
         callbacks.set_model(self.model)
-        will_validate =  bool(validation_data)
         callbacks.set_params({
             'epochs': epochs,
             'steps': steps_per_epoch,
@@ -382,6 +382,79 @@ class ModelForManyData(AbstractModel):
         self.record_model(result_dir_name, dir_path, model_name)
         self.record_conf_json(result_dir_name, dir_path, normalize_type, model_name)
 
+    def build_model_functions(self, will_validate):
+        self.__model._make_train_function()
+        if will_validate:
+            self.__model._make_test_function()
+
+    def one_batch(self, output_generator, batch_index: int, steps_done: int, callbacks: CallbackList):
+        generator_output = next(output_generator)
+
+        if not hasattr(generator_output, '__len__'):
+            raise ValueError('Output of generator should be '
+                             'a tuple `(x, y, sample_weight)` '
+                             'or `(x, y)`. Found: ' +
+                             str(generator_output))
+
+        if len(generator_output) == 2:
+            x, y = generator_output
+            sample_weight = None
+        elif len(generator_output) == 3:
+            x, y, sample_weight = generator_output
+        else:
+            raise ValueError('Output of generator should be '
+                             'a tuple `(x, y, sample_weight)` '
+                             'or `(x, y)`. Found: ' +
+                             str(generator_output))
+        # build batch logs
+        batch_logs = {}
+        if x is None or len(x) == 0:
+            # Handle data tensors support when no input given
+            # step-size = 1 for data tensors
+            batch_size = 1
+        elif isinstance(x, list):
+            batch_size = x[0].shape[0]
+        elif isinstance(x, dict):
+            batch_size = list(x.values())[0].shape[0]
+        else:
+            batch_size = x.shape[0]
+        batch_logs['batch'] = batch_index
+        batch_logs['size'] = batch_size
+        callbacks.on_batch_begin(batch_index, batch_logs)
+
+        outs = self.__model.train_on_batch(x,
+                                           y,
+                                           sample_weight=sample_weight)
+
+        outs = to_list(outs)
+        for l, o in zip(self.model.metrics_name, outs):
+            batch_logs[l] = o
+
+        callbacks.on_batch_end(batch_index, batch_logs)
+        return batch_index+1, steps_done+1
+
+    def one_batch_val(self, val_enqueuer_gen, validation_steps, epoch_logs):
+        val_outs = self.model.evaluate_generator(
+            val_enqueuer_gen,
+            validation_steps,
+            workers=0)
+        val_outs = to_list(val_outs)
+        # Same labels assumed.
+        for l, o in zip(self.model.metrics_names, val_outs):
+            epoch_logs['val_' + l] = o
+        return epoch_logs
+
+    def build_val_enqueuer(self, validation_data, validation_steps):
+        will_validate = bool(validation_data)
+        if will_validate is False:
+            return None, None, None
+        val_data = validation_data
+        val_enqueuer = OrderedEnqueuer(
+                    val_data,
+                    use_multiprocessing=False)
+        validation_steps = len(val_data)
+        return val_data, val_enqueuer, validation_steps if validation_steps is not None else len(validation_data)
+
     def fit_generator_for_multi_inputs_per_one_image(self,
                                                      image_generator: Union[DataLoaderFromPathsWithDataAugmentation, DataLoaderFromPaths],
                                                      epochs: int,
@@ -391,26 +464,19 @@ class ModelForManyData(AbstractModel):
                                                      steps_per_epoch: Optional[int] = None,
                                                      validation_steps: Optional[int] = None,
                                                      temp_best_path: str = "",
-                                                     save_weights_only: bool = False,
-                                                     wait_time: float = 0.01):
+                                                     save_weights_only: bool = False):
+        steps_per_epoch = steps_per_epoch if steps_per_epoch is None else len(image_generator)
         callbacks, will_validate = self.build_callbacks_for_multi_input(epochs,
                                                                         temp_best_path,
                                                                         steps_per_epoch,
                                                                         validation_data,
                                                                         save_weights_only)
+        print("is_sequence", isinstance(image_generator, Sequence))
         try:
-            if will_validate:
-                val_data = validation_data
-                val_enqueuer = GeneratorEnqueuer(
-                    val_data,
-                    use_multiprocessing=False)
-                val_enqueuer.start(workers=1,
-                                   max_queue_size=10)
-                val_enqueuer_gen = val_enqueuer.get()
-            enqueuer = GeneratorEnqueuer(
+            val_data, val_enqueuer, validation_steps = self.build_val_enqueuer(validation_data, validation_steps)
+            enqueuer = OrderedEnqueuer(
                     image_generator,
-                    use_multiprocessing=False,
-                    wait_time=wait_time)
+                    use_multiprocessing=False)
             enqueuer.start(workers=1, max_queue_size=10)
             output_generator = enqueuer.get()
 
@@ -424,66 +490,15 @@ class ModelForManyData(AbstractModel):
                 callbacks.on_epoch_begin(epoch)
                 steps_done = 0
                 batch_index = 0
-            while steps_done < steps_per_epoch:
-                generator_output = next(output_generator)
-                if not hasattr(generator_output, '__len__'):
-                    raise ValueError('Output of generator should be '
-                                     'a tuple `(x, y, sample_weight)` '
-                                     'or `(x, y)`. Found: ' +
-                                     str(generator_output))
+                while steps_done < steps_per_epoch:
+                    batch_index, steps_done = self.one_batch(output_generator, batch_index, steps_done, callbacks)
 
-                if len(generator_output) == 2:
-                    x, y = generator_output
-                    sample_weight = None
-                elif len(generator_output) == 3:
-                    x, y, sample_weight = generator_output
-                else:
-                    raise ValueError('Output of generator should be '
-                                     'a tuple `(x, y, sample_weight)` '
-                                     'or `(x, y)`. Found: ' +
-                                     str(generator_output))
-                batch_logs = {}
-                if x is None or len(x) == 0:
-                    # Handle data tensors support when no input given
-                    # step-size = 1 for data tensors
-                    batch_size = 1
-                elif isinstance(x, list):
-                    batch_size = x[0].shape[0]
-                elif isinstance(x, dict):
-                    batch_size = list(x.values())[0].shape[0]
-                else:
-                    batch_size = x.shape[0]
-                batch_logs['batch'] = batch_index
-                batch_logs['size'] = batch_size
-                callbacks.on_batch_begin(batch_index, batch_logs)
+                    # Epoch finished.
+                    if steps_done >= steps_per_epoch and val_data is not None:
+                        epoch_logs = self.one_batch_val(val_data, validation_steps, epoch_logs)
 
-                outs = self.__model.train_on_batch(x,
-                                                   y,
-                                                   sample_weight=sample_weight,
-                                                   class_weight=None)
-
-                outs = to_list(outs)
-                for l, o in zip(self.model.metrics_names, outs):
-                    batch_logs[l] = o
-
-                callbacks.on_batch_end(batch_index, batch_logs)
-
-                batch_index += 1
-                steps_done += 1
-
-                # Epoch finished.
-                if steps_done >= steps_per_epoch and will_validate:
-                    val_outs = self.model.evaluate_generator(
-                            val_enqueuer_gen,
-                            validation_steps,
-                            workers=0)
-                    val_outs = to_list(val_outs)
-                    # Same labels assumed.
-                    for l, o in zip(self.model.metrics_names, val_outs):
-                        epoch_logs['val_' + l] = o
-
-                if self.model.metrics_names.stop_training:
-                    break
+                    if self.model.metrics_names.stop_training:
+                        break
 
                 callbacks.on_epoch_end(epoch, epoch_logs)
                 epoch += 1
