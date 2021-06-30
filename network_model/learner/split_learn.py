@@ -88,7 +88,9 @@ class ModelLearner(AbsModelLearner):
                                          result_name: str = "result",
                                          model_name: str = "model",
                                          save_weights_only: bool = False,
-                                         will_use_multi_inputs_per_one_image: bool = False) -> md.ModelForManyData:
+                                         will_use_multi_inputs_per_one_image: bool = False,
+                                         input_data_preprocess_for_building_multi_data=None,
+                                         output_data_preprocess_for_building_multi_data=None) -> md.ModelForManyData:
         return super().train_with_validation_from_model(model,
                                                         result_dir_path,
                                                         train_dir,
@@ -98,7 +100,9 @@ class ModelLearner(AbsModelLearner):
                                                         result_name,
                                                         model_name,
                                                         save_weights_only,
-                                                        will_use_multi_inputs_per_one_image)
+                                                        will_use_multi_inputs_per_one_image,
+                                                        input_data_preprocess_for_building_multi_data,
+                                                        output_data_preprocess_for_building_multi_data)
 
     def train_with_validation(self,
                               dataset_root_dir: str,
@@ -110,7 +114,9 @@ class ModelLearner(AbsModelLearner):
                               tmp_model_path: str = None,
                               monitor: str = "",
                               save_weights_only: bool = False,
-                              will_use_multi_inputs_per_one_image: bool = False) -> md.ModelForManyData:
+                              will_use_multi_inputs_per_one_image: bool = False,
+                              input_data_preprocess_for_building_multi_data=None,
+                              output_data_preprocess_for_building_multi_data=None) -> md.ModelForManyData:
         """
         検証用データがある場合の学習
         :param dataset_root_dir: データが格納されたディレクトリ
@@ -123,6 +129,8 @@ class ModelLearner(AbsModelLearner):
         :param monitor: モデルの途中で記録するパラメータ　デフォルトだと途中で記録しない
         :param save_weights_only:
         :param will_use_multi_inputs_per_one_image:
+        :param input_data_preprocess_for_building_multi_data:
+        :param output_data_preprocess_for_building_multi_data:
         :return: 学習済みモデル
         """
         model_val = self.build_model(tmp_model_path, monitor)
@@ -136,6 +144,8 @@ class ModelLearner(AbsModelLearner):
                                                      result_name,
                                                      model_name,
                                                      save_weights_only,
-                                                     will_use_multi_inputs_per_one_image)
+                                                     will_use_multi_inputs_per_one_image,
+                                                     input_data_preprocess_for_building_multi_data,
+                                                     output_data_preprocess_for_building_multi_data)
 
 

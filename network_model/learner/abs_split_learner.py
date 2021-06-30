@@ -251,7 +251,9 @@ class AbsModelLearner(ABC):
                                          result_name: str = "result",
                                          model_name: str = "model",
                                          save_weights_only: bool = False,
-                                         will_use_multi_inputs_per_one_image: bool = False) -> LearnModel:
+                                         will_use_multi_inputs_per_one_image: bool = False,
+                                         input_data_preprocess_for_building_multi_data=None,
+                                         output_data_preprocess_for_building_multi_data=None) -> LearnModel:
         train_generator, train_steps_per_epoch, test_generator, test_steps_per_epoch = \
             self.build_validation_generator_and_get_steps_per_epoch(train_dir, validation_dir, batch_size)
 
@@ -266,7 +268,9 @@ class AbsModelLearner(ABC):
                    dir_path=result_dir_path,
                    model_name=model_name+"val",
                    save_weights_only=save_weights_only,
-                   will_use_multi_inputs_per_one_image=will_use_multi_inputs_per_one_image
+                   will_use_multi_inputs_per_one_image=will_use_multi_inputs_per_one_image,
+                   input_data_preprocess_for_building_multi_data=input_data_preprocess_for_building_multi_data,
+                   output_data_preprocess_for_building_multi_data=output_data_preprocess_for_building_multi_data
                    )
         return model
 
@@ -280,7 +284,9 @@ class AbsModelLearner(ABC):
                               tmp_model_path: str = None,
                               monitor: str = "",
                               save_weights_only: bool = False,
-                              will_use_multi_inputs_per_one_image: bool = False) -> LearnModel:
+                              will_use_multi_inputs_per_one_image: bool = False,
+                              input_data_preprocess_for_building_multi_data=None,
+                              output_data_preprocess_for_building_multi_data=None) -> LearnModel:
         """
         検証用データがある場合の学習
         :param dataset_root_dir: データが格納されたディレクトリ
@@ -293,6 +299,8 @@ class AbsModelLearner(ABC):
         :param monitor: モデルの途中で記録するパラメータ　デフォルトだと途中で記録しない
         :param save_weights_only:
         :param will_use_multi_inputs_per_one_image:
+        :param input_data_preprocess_for_building_multi_data:
+        :param output_data_preprocess_for_building_multi_data:
         :return: 学習済みモデル
         """
         model_val = self.build_model(tmp_model_path, monitor)
@@ -306,7 +314,9 @@ class AbsModelLearner(ABC):
                                                      result_name,
                                                      model_name,
                                                      save_weights_only,
-                                                     will_use_multi_inputs_per_one_image)
+                                                     will_use_multi_inputs_per_one_image,
+                                                     input_data_preprocess_for_building_multi_data,
+                                                     output_data_preprocess_for_building_multi_data)
 
     def train_without_validation(self,
                                  original_dir: str,
@@ -318,7 +328,9 @@ class AbsModelLearner(ABC):
                                  tmp_model_path: str = None,
                                  monitor: str = "",
                                  save_weights_only: bool = False,
-                                 will_use_multi_inputs_per_one_image: bool = False) -> LearnModel:
+                                 will_use_multi_inputs_per_one_image: bool = False,
+                                 input_data_preprocess_for_building_multi_data=None,
+                                 output_data_preprocess_for_building_multi_data=None) -> LearnModel:
         model = self.build_model(tmp_model_path, monitor)
         train_generator = self.build_train_generator(batch_size, original_dir)
         data_num = count_data_num_in_dir(original_dir)
@@ -326,7 +338,9 @@ class AbsModelLearner(ABC):
                             epoch_num,
                             steps_per_epoch=(data_num//batch_size),
                             save_weights_only=save_weights_only,
-                            will_use_multi_inputs_per_one_image=will_use_multi_inputs_per_one_image)
+                            will_use_multi_inputs_per_one_image=will_use_multi_inputs_per_one_image,
+                            input_data_preprocess_for_building_multi_data=input_data_preprocess_for_building_multi_data,
+                            output_data_preprocess_for_building_multi_data=output_data_preprocess_for_building_multi_data)
         model.record(result_name,
                      result_dir_path,
                      model_name,
@@ -344,7 +358,9 @@ class AbsModelLearner(ABC):
                                            start_index: Optional[int] = None,
                                            monitor: str = None,
                                            save_weights_only: bool = False,
-                                           will_use_multi_inputs_per_one_image: bool = False) -> List[LearnModel]:
+                                           will_use_multi_inputs_per_one_image: bool = False,
+                                           input_data_preprocess_for_building_multi_data=None,
+                                           output_data_preprocess_for_building_multi_data=None) -> List[LearnModel]:
         """
         あらかじめ交差検証のためにデータ分割したディレクトリから検証を行い学習する
         :param base_dir: 検証データが格納されたディレクトリ
@@ -358,6 +374,8 @@ class AbsModelLearner(ABC):
         :param monitor: モデルの途中で記録するパラメータ　デフォルトだと途中で記録しない
         :param save_weights_only:
         :param will_use_multi_inputs_per_one_image:
+        :param input_data_preprocess_for_building_multi_data:
+        :param output_data_preprocess_for_building_multi_data:
         :return:
         """
         val_dir_names_base = os.listdir(base_dir)
@@ -374,7 +392,9 @@ class AbsModelLearner(ABC):
                                              tmp_model_path,
                                              monitor,
                                              save_weights_only,
-                                             will_use_multi_inputs_per_one_image)
+                                             will_use_multi_inputs_per_one_image,
+                                             input_data_preprocess_for_building_multi_data,
+                                             output_data_preprocess_for_building_multi_data)
                   for result_name, model_name, data_dir_path in zip(result_names, model_names, data_dir_paths)]
         return models
 
@@ -390,7 +410,9 @@ class AbsModelLearner(ABC):
                          tmp_model_path: str = None,
                          monitor: str = "",
                          save_weights_only: bool = False,
-                         will_use_multi_inputs_per_one_image: bool = False) -> List[LearnModel]:
+                         will_use_multi_inputs_per_one_image: bool = False,
+                         input_data_preprocess_for_building_multi_data=None,
+                         output_data_preprocess_for_building_multi_data=None) -> List[LearnModel]:
         """
         バギングで学習する
         :param dataset_root_dir: データが格納されたディレクトリ
@@ -405,6 +427,8 @@ class AbsModelLearner(ABC):
         :param monitor: モデルの途中で記録するパラメータ　デフォルトだと途中で記録しない
         :param save_weights_only:
         :param will_use_multi_inputs_per_one_image:
+        :param input_data_preprocess_for_building_multi_data:
+        :param output_data_preprocess_for_building_multi_data:
         :return: 学習済みモデル
         """
         data_picker = BaggingDataPicker(pick_data_num, build_dataset_num)
@@ -422,7 +446,9 @@ class AbsModelLearner(ABC):
                                                       result_model_name,
                                                       model_name,
                                                       save_weights_only,
-                                                      will_use_multi_inputs_per_one_image)
+                                                      will_use_multi_inputs_per_one_image,
+                                                      input_data_preprocess_for_building_multi_data,
+                                                      output_data_preprocess_for_building_multi_data)
                 for model, bagging_train_dir, result_model_name in zip(model_base, bagging_train_dirs, result_names)]
 
     def build_validation_generator_and_get_steps_per_epoch(self,
