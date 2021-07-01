@@ -95,6 +95,7 @@ class ModelMerger:
         model.summary()
         # モデルをコンパイル
         model.compile(loss=self.loss, optimizer=self.optimizer, metrics=self.metrics)
+        model.metrics_name=self.metrics
         print("compiled model type:", type(model))
         return model
 

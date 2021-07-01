@@ -229,11 +229,15 @@ class ModelForManyData(AbstractModel):
 
     @property
     def base_logger(self):
-        return BaseLogger()
+        return BaseLogger(stateful_metrics=self.stateful_metric_names)
 
     @property
     def progbar_logger(self):
-        return ProgbarLogger(count_mode='steps')
+        return ProgbarLogger(count_mode='steps', stateful_metrics=self.stateful_metric_names)
+
+    @property
+    def stateful_metric_names(self):
+        return ["loss", "accuracy", "val_loss", "val_accuracy"]
 
     def get_callbacks_for_multi_input(self, temp_best_path, save_weights_only= False):
         base_callbacks = self.get_callbacks(temp_best_path, save_weights_only)
@@ -400,13 +404,10 @@ class ModelForManyData(AbstractModel):
         if will_validate:
             self.__model._make_test_function()
 
-    def one_batch(self,
-                  output_generator,
-                  batch_index: int,
-                  steps_done: int,
-                  callbacks: CallbackList,
-                  input_data_preprocess_for_building_multi_data=None,
-                  output_data_preprocess_for_building_multi_data=None):
+    def build_one_batch_dataset(self,
+                                output_generator,
+                                input_data_preprocess_for_building_multi_data=None,
+                                output_data_preprocess_for_building_multi_data=None):
         generator_output = next(output_generator)
 
         if not hasattr(generator_output, '__len__'):
@@ -425,54 +426,53 @@ class ModelForManyData(AbstractModel):
                              'a tuple `(x, y, sample_weight)` '
                              'or `(x, y)`. Found: ' +
                              str(generator_output))
-        # build batch logs
-        batch_logs = {}
-        if x is None or len(x) == 0:
-            # Handle data tensors support when no input given
-            # step-size = 1 for data tensors
-            batch_size = 1
-        elif isinstance(x, list):
-            batch_size = x[0].shape[0]
-        elif isinstance(x, dict):
-            batch_size = list(x.values())[0].shape[0]
-        else:
-            batch_size = x.shape[0]
-        batch_logs['batch'] = batch_index
-        batch_logs['size'] = batch_size
-        callbacks.on_batch_begin(batch_index, batch_logs)
         if input_data_preprocess_for_building_multi_data is not None:
             x = input_data_preprocess_for_building_multi_data(x)
-        print("pre_output_data_len", len(y), y[0])
         if output_data_preprocess_for_building_multi_data is not None:
             y = output_data_preprocess_for_building_multi_data(y)
+        return x, y, sample_weight
 
-        print("batch_size", batch_size)
-        print("output_data_len", len(y), y[0])
-        print("input_data_len", len(x), len(x[0]), len(x[0][0]), len(x[0][0][0]), x[0])
+    def one_batch(self,
+                  output_generator,
+                  batch_index: int,
+                  steps_done: int,
+                  callbacks: CallbackList,
+                  input_data_preprocess_for_building_multi_data=None,
+                  output_data_preprocess_for_building_multi_data=None):
+        x, y, sample_weight = self.build_one_batch_dataset(output_generator,
+                                                           input_data_preprocess_for_building_multi_data,
+                                                           output_data_preprocess_for_building_multi_data)
+        # build batch logs
+        batch_logs = {}
+        callbacks.on_batch_begin(batch_index, batch_logs)
 
         outs = self.__model.train_on_batch(x,
                                            y,
                                            sample_weight=sample_weight)
-
         outs = to_list(outs)
-        for l, o in zip(self.model.metrics_name, outs):
-            batch_logs[l] = o
+        batch_logs["loss"] = outs[0]
+        batch_logs["accuracy"] = outs[1]
 
         callbacks.on_batch_end(batch_index, batch_logs)
         return batch_index+1, steps_done+1
 
-    def one_batch_val(self, val_enqueuer_gen, validation_steps, epoch_logs):
-        val_outs = self.model.evaluate_generator(
-            val_enqueuer_gen,
-            validation_steps,
-            workers=0)
+    def one_batch_val(self,
+                      val_enqueuer_gen,
+                      validation_steps,
+                      epoch_logs,
+                      input_data_preprocess_for_building_multi_data=None,
+                      output_data_preprocess_for_building_multi_data=None):
+        x, y, sample_weight = self.build_one_batch_dataset(val_enqueuer_gen,
+                                                           input_data_preprocess_for_building_multi_data,
+                                                           output_data_preprocess_for_building_multi_data)
+        val_outs = self.model.evaluate(x, y, sample_weight=sample_weight)
         val_outs = to_list(val_outs)
         # Same labels assumed.
-        for l, o in zip(self.model.metrics_names, val_outs):
-            epoch_logs['val_' + l] = o
+        epoch_logs['val_loss'] = val_outs[0]
+        epoch_logs['val_accuracy'] = val_outs[1]
         return epoch_logs
 
-    def build_val_enqueuer(self, validation_data, validation_steps):
+    def build_val_enqueuer(self, validation_data):
         will_validate = bool(validation_data)
         if will_validate is False:
             return None, None, None
@@ -508,10 +508,11 @@ class ModelForManyData(AbstractModel):
 
             # Epoch finished.
             if steps_done >= steps_per_epoch and val_data is not None:
-                epoch_logs = self.one_batch_val(val_data, validation_steps, epoch_logs)
-
-            if self.model.metrics_names.stop_training:
-                break
+                epoch_logs = self.one_batch_val(val_data,
+                                                validation_steps,
+                                                epoch_logs,
+                                                input_data_preprocess_for_building_multi_data,
+                                                output_data_preprocess_for_building_multi_data)
 
         callbacks.on_epoch_end(epoch, epoch_logs)
         return epoch+1, epoch_logs
@@ -534,10 +535,11 @@ class ModelForManyData(AbstractModel):
                                                                         steps_per_epoch,
                                                                         validation_data,
                                                                         save_weights_only)
+        callbacks.on_train_begin()
         enqueuer = None
         val_enqueuer = None
         try:
-            val_data, val_enqueuer, validation_steps = self.build_val_enqueuer(validation_data, validation_steps)
+            val_data, val_enqueuer, validation_steps = self.build_val_enqueuer(validation_data)
             enqueuer = OrderedEnqueuer(
                     image_generator,
                     use_multiprocessing=False)
@@ -558,8 +560,6 @@ class ModelForManyData(AbstractModel):
                                                        callbacks,
                                                        input_data_preprocess_for_building_multi_data,
                                                        output_data_preprocess_for_building_multi_data)
-                if self.model.metrics_names.stop_training:
-                    break
 
         finally:
             try:
