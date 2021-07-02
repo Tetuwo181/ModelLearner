@@ -1,7 +1,7 @@
 import keras.callbacks
 from keras.callbacks import CallbackList, ProgbarLogger, BaseLogger, History
 from keras.utils.data_utils import Sequence, OrderedEnqueuer
-from keras.utils.generic_utils import to_list
+from keras.utils.generic_utils import to_list, unpack_singleton
 from keras.preprocessing.image import ImageDataGenerator
 import numpy as np
 from network_model.generator import DataLoaderFromPaths
@@ -462,14 +462,38 @@ class ModelForManyData(AbstractModel):
                       epoch_logs,
                       input_data_preprocess_for_building_multi_data=None,
                       output_data_preprocess_for_building_multi_data=None):
-        x, y, sample_weight = self.build_one_batch_dataset(val_enqueuer_gen,
-                                                           input_data_preprocess_for_building_multi_data,
-                                                           output_data_preprocess_for_building_multi_data)
-        val_outs = self.model.evaluate(x, y, sample_weight=sample_weight)
-        val_outs = to_list(val_outs)
+        steps = len(val_enqueuer_gen)
+        steps_done = 0
+        outs_per_batch = []
+        batch_sizes = []
+        while steps_done < steps:
+            x, y, sample_weight = self.build_one_batch_dataset(val_enqueuer_gen,
+                                                               input_data_preprocess_for_building_multi_data,
+                                                               output_data_preprocess_for_building_multi_data)
+            val_outs = self.model.evaluate(x, y, sample_weight=sample_weight)
+            val_outs = to_list(val_outs)
+            outs_per_batch.append(val_outs)
+            if x is None or len(x) == 0:
+                # Handle data tensors support when no input given
+                # step-size = 1 for data tensors
+                batch_size = 1
+            elif isinstance(x, list):
+                batch_size = x[0].shape[0]
+            elif isinstance(x, dict):
+                batch_size = list(x.values())[0].shape[0]
+            else:
+                batch_size = x.shape[0]
+            if batch_size == 0:
+                raise ValueError('Received an empty batch. '
+                                 'Batches should contain '
+                                 'at least one item.')
+            steps_done += 1
+            batch_sizes.append(batch_size)
+        losses = [out[0] for out in outs_per_batch]
+        accuracies = [out[1] for out in outs_per_batch]
         # Same labels assumed.
-        epoch_logs['val_loss'] = val_outs[0]
-        epoch_logs['val_accuracy'] = val_outs[1]
+        epoch_logs['val_loss'] = np.average(losses, weights=batch_sizes)
+        epoch_logs['val_accuracy'] = np.average(accuracies, weights=batch_sizes)
         return epoch_logs
 
     def build_val_enqueuer(self, validation_data):
@@ -562,12 +586,14 @@ class ModelForManyData(AbstractModel):
                                                        output_data_preprocess_for_building_multi_data)
 
         finally:
-            try:
-                if enqueuer is not None:
-                    enqueuer.stop()
-            finally:
-                if val_enqueuer is not None:
-                    val_enqueuer.stop()
+
+            if enqueuer is not None:
+                print(type(enqueuer))
+                enqueuer.stop()
+            #finally:
+            #    if val_enqueuer is not None:
+            #        print(type(val_enqueuer))
+            #        val_enqueuer.stop()
 
         callbacks.on_train_end()
         return self.model.history
