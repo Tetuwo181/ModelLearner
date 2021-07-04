@@ -3,13 +3,9 @@ from keras.layers import Input, Dense
 from keras.layers import Add, Subtract, Multiply, Average, Maximum, Minimum, Concatenate, Dot
 from keras.optimizers import Optimizer, SGD
 from keras.models import Model
-from tensorflow.python.framework.ops import Tensor
-from typing import List, Union, Optional, Callable, Tuple
+from typing import List, Union, Optional, Tuple
 from network_model.model_base.tempload import builder_for_merge
-
-Merge = Union[Add, Subtract, Multiply, Average, Minimum, Maximum, Concatenate, Dot]
-Loss = Union[str, Callable[[Tensor, Tensor], Tensor]]
-TrainableModelIndex = Union[bool, int]
+from model_merger.type import Merge, Loss, TrainableModelIndex
 
 
 class ModelMerger:

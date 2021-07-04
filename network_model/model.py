@@ -466,11 +466,14 @@ class ModelForManyData(AbstractModel):
         steps_done = 0
         outs_per_batch = []
         batch_sizes = []
+        print("epoc_logs:", epoch_logs)
         while steps_done < steps:
             x, y, sample_weight = self.build_one_batch_dataset(val_enqueuer_gen,
                                                                input_data_preprocess_for_building_multi_data,
                                                                output_data_preprocess_for_building_multi_data)
+            print("data_length:", len(x))
             val_outs = self.model.evaluate(x, y, sample_weight=sample_weight)
+            print("val_outs:", val_outs)
             val_outs = to_list(val_outs)
             outs_per_batch.append(val_outs)
             if x is None or len(x) == 0:
