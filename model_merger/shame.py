@@ -1,8 +1,8 @@
 from model_merger.type import Merge, Loss, TrainableModelIndex
+from model_merger.proc.calculator import LCaliculator
 from keras.models import Model
-from keras.layers import Input
+from keras.layers import Input, Lambda
 import numpy as np
-from math import e as exponential
 
 
 class ShameBuilder(object):
@@ -19,41 +19,27 @@ class ShameBuilder(object):
         return self.__base_model.output
 
     @property
+    def teacher_input_layer(self):
+        return Input(shape=tuple(self.__base_model.output_shape[1:]))
+
+    @property
     def input_layer(self):
-        return self.__base_model.inputs
+        return Input(shape=tuple(self.__base_model.input_shape[1:]))
 
     def build_input_teacher_from_output(self):
         return Input(shape=self.output_shape)
 
-    def build_shame_trainer_for_classifivation(self):
+    def build_shame_trainer_for_classifivation(self,
+                                               calculator: LCaliculator,
+                                               optimizer):
         input_for_batch_data = [self.input_layer, self.input_layer]
-        output_for_batch_data = [self.output_layer, self.input_layer]
+        predict_outputs = [self.__base_model(input_batch) for input_batch in input_for_batch_data]
+        teacher_inputs = [self.teacher_input_layer, self.teacher_input_layer]
+        loss_inputs = predict_outputs + teacher_inputs
+        output_loss = calculator.build_loss_layer()(loss_inputs)
+        inputs = input_for_batch_data + teacher_inputs
+        train_model = Model(inputs=inputs, outputs=output_loss)
+        train_model.compile(optimizer=optimizer, loss=lambda y_true, y_pred: y_pred)
+        return train_model
 
 
-class LCaliculator(object):
-
-    def __init__(self, q):
-        """
-
-        :param q:　https://www.mdpi.com/2073-8994/10/9/385の論文に掲載されているQの値のパラメータ
-        """
-
-        self.__q = q
-
-    @property
-    def q(self):
-        return self.__q
-
-    def l_minus(self, x):
-        return 2*np.power(self.q*exponential, -((2.77/self.q)*x))
-
-    def l_plus(self, x):
-        return (2/self.q)*np.power(x, 2)
-
-
-def calc_l1_norm(output_base, output_other):
-    return np.linalg.norm(output_base-output_other, 1)
-
-
-def is_same_class(base_classes, other_classes):
-    return np.linalg.norm(base_classes-other_classes, 1) == 0
