@@ -1,6 +1,7 @@
 from math import e as exponential
 import numpy as np
 from keras.layers import Lambda
+from keras.callbacks import Callback
 
 
 class LCaliculator(object):
