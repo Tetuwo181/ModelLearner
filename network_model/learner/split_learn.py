@@ -61,18 +61,21 @@ class ModelLearner(AbsModelLearner):
     def build_model(self,
                     tmp_model_path: str = None,
                     monitor: str = "") -> md.ModelForManyData:
+        build_result = self.model_builder(self.class_num)
+        model = build_result[0] if type(build_result) is tuple else build_result
+        callbacks = self.callbacks + build_result[1] if type(build_result) is tuple else self.callbacks
         if tmp_model_path is None:
-            return md.ModelForManyData(self.model_builder(self.class_num),
+            return md.ModelForManyData(model,
                                        self.class_list,
-                                       callbacks=self.callbacks,
+                                       callbacks=callbacks,
                                        monitor=monitor,
                                        will_save_h5=self.will_save_h5,
                                        preprocess_for_model=self.preprocess_for_model,
                                        after_learned_process=self.after_learned_process)
 
-        return md.ModelForManyData(self.model_builder(tmp_model_path),
+        return md.ModelForManyData(model,
                                    self.class_list,
-                                   callbacks=self.callbacks,
+                                   callbacks=callbacks,
                                    monitor=monitor,
                                    will_save_h5=self.will_save_h5,
                                    preprocess_for_model=self.preprocess_for_model,
