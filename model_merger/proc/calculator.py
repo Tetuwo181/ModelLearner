@@ -1,6 +1,7 @@
 from math import e as exponential
 import numpy as np
 from keras.layers import Lambda
+import tensorflow as tf
 from keras.callbacks import Callback
 
 
@@ -25,17 +26,20 @@ class LCaliculator(object):
 
     @property
     def loss_func(self):
+        @tf.function
         def loss(inputs):
             base_output, other_output, base_teacher, other_teacher = inputs
             distance = calc_l1_norm(base_output, other_output)
             return self.l_minus(distance) if is_same_class(base_teacher, other_teacher) else self.l_plus(distance)
         return loss
 
+    @tf.function
     def l_minus(self, x):
-        return 2*np.power(self.q*exponential, -((2.77/self.q)*x))
+        return 2*tf.math.pow(self.q*exponential, -((2.77/self.q)*x))
 
+    @tf.function
     def l_plus(self, x):
-        return (2/self.q)*np.power(x, 2)
+        return (2/self.q)*tf.math.pow(x, 2)
 
     def build_loss_layer(self, name="kd_"):
         return Lambda(self.loss_func, name=name, output_shape=(1,))

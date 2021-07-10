@@ -55,6 +55,7 @@ class TempLoader:
         return model
 
     def __call__(self, temp_paths: Union[str, Tuple[str, str]], optimizer: Optimizer = SGD()):
+        print(temp_paths)
         if type(temp_paths) is str:
             return self.load_simple_model(temp_paths, optimizer)
         model_arc_path, model_weight_path = temp_paths

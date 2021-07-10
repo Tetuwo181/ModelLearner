@@ -1,7 +1,7 @@
 from model_merger.type import Merge, Loss, TrainableModelIndex
 from model_merger.proc.calculator import LCaliculator
 from keras.models import Model
-from keras.layers import Input, Lambda
+from keras.layers import Input, Concatenate
 from model_merger.proc.checkpoint import BaseModelCheckPointer
 import numpy as np
 
@@ -45,8 +45,8 @@ class ShameBuilder(object):
         input_for_batch_data = [self.input_layer, self.input_layer]
         predict_outputs = [self.__base_model(input_batch) for input_batch in input_for_batch_data]
         teacher_inputs = [self.teacher_input_layer, self.teacher_input_layer]
-        loss_inputs = predict_outputs + teacher_inputs
-        output_loss = calculator.build_loss_layer()(loss_inputs)
+        input_loss = Concatenate()(predict_outputs + teacher_inputs)
+        output_loss = calculator.build_loss_layer()(predict_outputs + teacher_inputs)
         inputs = input_for_batch_data + teacher_inputs
         train_model = Model(inputs=inputs, outputs=output_loss)
         train_model.compile(optimizer=optimizer, loss=lambda y_true, y_pred: y_pred)
@@ -56,6 +56,7 @@ class ShameBuilder(object):
                                                       save_best_only,
                                                       save_weights_only,
                                                       self.__mode)
+        train_model.summary()
         return train_model, [base_model_checkpoint]
 
 

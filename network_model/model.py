@@ -427,7 +427,7 @@ class ModelForManyData(AbstractModel):
                              'or `(x, y)`. Found: ' +
                              str(generator_output))
         if input_data_preprocess_for_building_multi_data is not None:
-            x = input_data_preprocess_for_building_multi_data(x)
+            x = input_data_preprocess_for_building_multi_data(x, y)
         if output_data_preprocess_for_building_multi_data is not None:
             y = output_data_preprocess_for_building_multi_data(y)
         return x, y, sample_weight
