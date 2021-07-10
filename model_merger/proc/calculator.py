@@ -46,8 +46,8 @@ class LCaliculator(object):
 
 
 def calc_l1_norm(output_base, output_other):
-    return np.linalg.norm(output_base-output_other, 1)
+    return tf.norm(output_base-output_other, 1)
 
 
 def is_same_class(base_classes, other_classes):
-    return np.linalg.norm(base_classes-other_classes, 1) == 0
+    return tf.norm(base_classes-other_classes, 1) == 0
