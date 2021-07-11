@@ -1,12 +1,12 @@
 from model_merger.type import Merge, Loss, TrainableModelIndex
 from model_merger.proc.calculator import LCaliculator
 from keras.models import Model
-from keras.layers import Input, Concatenate
+from keras.layers import Input, Concatenate, Reshape
 from model_merger.proc.checkpoint import BaseModelCheckPointer
 import numpy as np
 
 
-class ShameBuilder(object):
+class SiameseBuilder(object):
 
     def __init__(self,
                  base_model: Model,
@@ -30,7 +30,7 @@ class ShameBuilder(object):
 
     @property
     def input_layer(self):
-        return Input(shape=tuple(self.__base_model.input_shape[1:]))
+        return Input(batch_shape=self.__base_model.input_shape)
 
     def build_input_teacher_from_output(self):
         return Input(shape=self.output_shape)
@@ -45,7 +45,6 @@ class ShameBuilder(object):
         input_for_batch_data = [self.input_layer, self.input_layer]
         predict_outputs = [self.__base_model(input_batch) for input_batch in input_for_batch_data]
         teacher_inputs = [self.teacher_input_layer, self.teacher_input_layer]
-        input_loss = Concatenate()(predict_outputs + teacher_inputs)
         output_loss = calculator.build_loss_layer()(predict_outputs + teacher_inputs)
         inputs = input_for_batch_data + teacher_inputs
         train_model = Model(inputs=inputs, outputs=output_loss)
