@@ -15,6 +15,7 @@ import os
 from datetime import datetime
 from DataIO import data_loader as dl
 from network_model.abstract_model import AbstractModel, build_record_path, ModelPreProcessor
+from util.keras_version import is_new_keras
 
 
 class Model(AbstractModel):
@@ -105,20 +106,39 @@ class Model(AbstractModel):
         print("start learning")
         self.__model = self.run_preprocess_model(self.__model)
         if validation_data is None:
-            self.__history = self.__model.fit(image_generator.flow(data,
-                                                                   label_set,
-                                                                   batch_size=generator_batch_size),
-                                              steps_per_epoch=len(data) / generator_batch_size,
-                                              epochs=epochs,
-                                              callbacks=callbacks)
+            if is_new_keras():
+                self.__history = self.__model.fit(image_generator.flow(data,
+                                                                       label_set,
+                                                                       batch_size=generator_batch_size),
+                                                  steps_per_epoch=len(data) / generator_batch_size,
+                                                  epochs=epochs,
+                                                  callbacks=callbacks)
+            else:
+                self.__history = self.__model.fit_generator(image_generator.flow(data,
+                                                                                 label_set,
+                                                                                 batch_size=generator_batch_size),
+                                                            steps_per_epoch=len(data) / generator_batch_size,
+                                                            epochs=epochs,
+                                                            callbacks=callbacks)
+
         else:
-            self.__history = self.__model.fit(image_generator.flow(data,
-                                                                   label_set,
-                                                                   batch_size=generator_batch_size),
-                                              steps_per_epoch=len(data) / generator_batch_size,
-                                              epochs=epochs,
-                                              validation_data=validation_data,
-                                              callbacks=callbacks)
+            if is_new_keras():
+                self.__history = self.__model.fit(image_generator.flow(data,
+                                                                       label_set,
+                                                                       batch_size=generator_batch_size),
+                                                  steps_per_epoch=len(data) / generator_batch_size,
+                                                  epochs=epochs,
+                                                  validation_data=validation_data,
+                                                  callbacks=callbacks)
+            else:
+                self.__history = self.__model.fit_generator(image_generator.flow(data,
+                                                                                 label_set,
+                                                                                 batch_size=generator_batch_size),
+                                                            steps_per_epoch=len(data) / generator_batch_size,
+                                                            epochs=epochs,
+                                                            validation_data=validation_data,
+                                                            callbacks=callbacks)
+
         self.after_learned_process()
         return self
 
@@ -322,10 +342,17 @@ class ModelForManyData(AbstractModel):
                                                                   output_data_preprocess_for_building_multi_data=output_data_preprocess_for_building_multi_data)
                 return self
             callbacks = self.get_callbacks(temp_best_path, save_weights_only)
-            self.__history = self.__model.fit(image_generator,
-                                              steps_per_epoch=steps_per_epoch,
-                                              epochs=epochs,
-                                              callbacks=callbacks)
+            if is_new_keras():
+                self.__history = self.__model.fit(image_generator,
+                                                  steps_per_epoch=steps_per_epoch,
+                                                  epochs=epochs,
+                                                  callbacks=callbacks)
+            else:
+                self.__history = self.__model.fit_generator(image_generator,
+                                                            steps_per_epoch=steps_per_epoch,
+                                                            epochs=epochs,
+                                                            callbacks=callbacks)
+
         else:
             if will_use_multi_inputs_per_one_image:
                 self.fit_generator_for_multi_inputs_per_one_image(image_generator,
@@ -340,12 +367,21 @@ class ModelForManyData(AbstractModel):
                 return self
             print('epochs', epochs)
             callbacks = self.get_callbacks(temp_best_path, save_weights_only)
-            self.__history = self.__model.fit(image_generator,
-                                              steps_per_epoch=steps_per_epoch,
-                                              validation_steps=validation_steps,
-                                              epochs=epochs,
-                                              validation_data=validation_data,
-                                              callbacks=callbacks)
+            if is_new_keras():
+                self.__history = self.__model.fit(image_generator,
+                                                  steps_per_epoch=steps_per_epoch,
+                                                  validation_steps=validation_steps,
+                                                  epochs=epochs,
+                                                  validation_data=validation_data,
+                                                  callbacks=callbacks)
+            else:
+                self.__history = self.__model.fit_generator(image_generator,
+                                                            steps_per_epoch=steps_per_epoch,
+                                                            validation_steps=validation_steps,
+                                                            epochs=epochs,
+                                                            validation_data=validation_data,
+                                                            callbacks=callbacks)
+
         self.after_learned_process()
         return self
 

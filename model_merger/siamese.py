@@ -1,5 +1,5 @@
 from model_merger.type import Merge, Loss, TrainableModelIndex
-from model_merger.proc.calculator import LCaliculator
+from model_merger.proc.calculator import LCaliculator, calc_l1_norm, _eucl_dist_output_shape
 from keras.models import Model
 from keras.layers import Input, Concatenate, Reshape
 from model_merger.proc.checkpoint import BaseModelCheckPointer
