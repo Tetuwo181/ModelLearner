@@ -10,6 +10,7 @@ from datetime import datetime
 import json
 from DataIO import data_loader as dl
 from abc import ABC, abstractmethod
+from util.keras_version import is_new_keras
 
 ModelPreProcessor = Optional[Callable[[keras.engine.training.Model],  keras.engine.training.Model]]
 
@@ -41,6 +42,12 @@ class AbstractModel(ABC):
         self.__will_save_h5 = will_save_h5
         self.__preprocess_for_model = preprocess_for_model
         self.__after_learned_process = after_learned_process
+        if is_new_keras() is False and self.__monitor == "val_accuracy":
+            self.__monitor = "val_acc"
+        else:
+            if self.__monitor == "val_acc":
+                self.__monitor = "val_accuracy"
+        print("monitor:", self.__monitor)
 
     @property
     @abstractmethod

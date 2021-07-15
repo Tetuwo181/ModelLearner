@@ -8,6 +8,7 @@ import keras.engine.training
 from typing import Union
 from typing import Tuple
 from util_types import types_of_loco
+from util.keras_version import is_new_keras
 
 
 def builder(
@@ -32,7 +33,7 @@ def builder(
     output_num = class_num if class_num > 2 else 1
     use_loss = "categorical_crossentropy" if class_num > 2 else "binary_crossentropy"
     output_activation = "softmax" if class_num > 2 else "sigmoid"
-    model_output = GlobalAveragePooling2D()(mobile_net.output)
+    model_output = GlobalAveragePooling2D()(mobile_net.output) if is_new_keras() else mobile_net.output
     model_output = Flatten()(model_output)
     model_output = Dense(output_num, activation=output_activation)(model_output)
     model = Model(mobile_net.input, model_output)
