@@ -6,6 +6,7 @@ from keras.models import Model
 from typing import List, Union, Optional, Tuple
 from network_model.model_base.tempload import builder_for_merge
 from model_merger.type import Merge, Loss, TrainableModelIndex
+from util.keras_version import is_new_keras
 
 
 class ModelMerger:
@@ -126,7 +127,10 @@ class ModelMerger:
         models = [builder_for_merge(h5_path) for h5_path in h5_paths]
         are_trainable_models = trainable_model if type(trainable_model) is list else [trainable_model for _ in h5_paths]
         for index, (model, is_trainable) in enumerate(zip(models, are_trainable_models)):
-            model._name = merge_per_model_name + str(index)
+            if is_new_keras():
+                model._name = merge_per_model_name + str(index)
+            else:
+                model.name = merge_per_model_name + str(index)
             self.set_model_trainable(model, is_trainable)
         return self.merge_models(models, output_num, middle_layer_neuro_nums)
 

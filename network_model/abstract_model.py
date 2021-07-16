@@ -44,9 +44,6 @@ class AbstractModel(ABC):
         self.__after_learned_process = after_learned_process
         if is_new_keras() is False and self.__monitor == "val_accuracy":
             self.__monitor = "val_acc"
-        else:
-            if self.__monitor == "val_acc":
-                self.__monitor = "val_accuracy"
         print("monitor:", self.__monitor)
 
     @property
