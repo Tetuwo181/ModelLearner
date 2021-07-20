@@ -33,7 +33,7 @@ class LCaliculator(object):
         return (2/self.q)*tf.math.pow(x, 2)
 
     def build_loss_layer(self, name="kd_"):
-        return Lambda(_eucl_dist_output_shape, name=name, output_shape=_eucl_dist_output_shape)
+        return Lambda(calc_l1_norm, name=name, output_shape=_eucl_dist_output_shape)
 
 
 def calc_l1_norm(vects):
@@ -42,6 +42,7 @@ def calc_l1_norm(vects):
 
 
 def _eucl_dist_output_shape(shapes):
+    print(shapes, type(shapes))
     shape1, shape2 = shapes
     return shape1[0], 1
 

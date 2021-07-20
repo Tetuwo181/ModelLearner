@@ -463,9 +463,9 @@ class ModelForManyData(AbstractModel):
                              'or `(x, y)`. Found: ' +
                              str(generator_output))
         if input_data_preprocess_for_building_multi_data is not None:
-            x = input_data_preprocess_for_building_multi_data(x, y)
+            x, y = input_data_preprocess_for_building_multi_data(x, y)
         if output_data_preprocess_for_building_multi_data is not None:
-            y = output_data_preprocess_for_building_multi_data(y)
+            y = output_data_preprocess_for_building_multi_data(x, y)
         return x, y, sample_weight
 
     def one_batch(self,
@@ -487,7 +487,8 @@ class ModelForManyData(AbstractModel):
                                            sample_weight=sample_weight)
         outs = to_list(outs)
         batch_logs["loss"] = outs[0]
-        batch_logs["accuracy"] = outs[1]
+        if len(outs) > 1:
+            batch_logs["accuracy"] = outs[1]
 
         callbacks.on_batch_end(batch_index, batch_logs)
         return batch_index+1, steps_done+1
@@ -527,7 +528,8 @@ class ModelForManyData(AbstractModel):
             steps_done += 1
             batch_sizes.append(batch_size)
         losses = [out[0] for out in outs_per_batch]
-        accuracies = [out[1] for out in outs_per_batch]
+        if len(outs_per_batch[0]) > 1:
+            accuracies = [out[1] for out in outs_per_batch]
         # Same labels assumed.
         epoch_logs['val_loss'] = np.average(losses, weights=batch_sizes)
         epoch_logs['val_accuracy'] = np.average(accuracies, weights=batch_sizes)

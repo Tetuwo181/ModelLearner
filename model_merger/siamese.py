@@ -1,5 +1,5 @@
 from model_merger.type import Merge, Loss, TrainableModelIndex
-from model_merger.proc.calculator import LCaliculator, calc_l1_norm, _eucl_dist_output_shape
+from model_merger.proc.calculator import LCaliculator, contrastive_loss
 from keras.models import Model
 from keras.layers import Input, Concatenate, Reshape
 from model_merger.proc.checkpoint import BaseModelCheckPointer
@@ -42,13 +42,11 @@ class SiameseBuilder(object):
                                                save_best_only=True,
                                                save_weights_only=False):
         calculator = LCaliculator(q)
-        input_for_batch_data = [self.input_layer, self.input_layer]
-        predict_outputs = [self.__base_model(input_batch) for input_batch in input_for_batch_data]
-        teacher_inputs = [self.teacher_input_layer, self.teacher_input_layer]
-        output_loss = calculator.build_loss_layer()(predict_outputs + teacher_inputs)
-        inputs = input_for_batch_data + teacher_inputs
+        inputs = [self.input_layer, self.input_layer]
+        predict_outputs = [self.__base_model(input_batch) for input_batch in inputs]
+        output_loss = calculator.build_loss_layer()(predict_outputs)
         train_model = Model(inputs=inputs, outputs=output_loss)
-        train_model.compile(optimizer=optimizer, loss=lambda y_true, y_pred: y_pred)
+        train_model.compile(optimizer=optimizer, loss=contrastive_loss)
         base_model_checkpoint = BaseModelCheckPointer(self.__base_model,
                                                       filepath,
                                                       self.__monitor,
