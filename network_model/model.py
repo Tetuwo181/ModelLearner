@@ -503,7 +503,6 @@ class ModelForManyData(AbstractModel):
         steps_done = 0
         outs_per_batch = []
         batch_sizes = []
-        print("epoc_logs:", epoch_logs)
         while steps_done < steps:
             x, y, sample_weight = self.build_one_batch_dataset(val_enqueuer_gen,
                                                                input_data_preprocess_for_building_multi_data,
