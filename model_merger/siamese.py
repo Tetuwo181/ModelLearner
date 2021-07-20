@@ -46,7 +46,7 @@ class SiameseBuilder(object):
         predict_outputs = [self.__base_model(input_batch) for input_batch in inputs]
         output_loss = calculator.build_loss_layer()(predict_outputs)
         train_model = Model(inputs=inputs, outputs=output_loss)
-        train_model.compile(optimizer=optimizer, loss=contrastive_loss)
+        train_model.compile(optimizer=optimizer, loss=contrastive_loss, metrics=['accuracy'])
         base_model_checkpoint = BaseModelCheckPointer(self.__base_model,
                                                       filepath,
                                                       self.__monitor,
