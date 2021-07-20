@@ -528,11 +528,11 @@ class ModelForManyData(AbstractModel):
             steps_done += 1
             batch_sizes.append(batch_size)
         losses = [out[0] for out in outs_per_batch]
+        epoch_logs['val_loss'] = np.average(losses, weights=batch_sizes)
         if len(outs_per_batch[0]) > 1:
             accuracies = [out[1] for out in outs_per_batch]
-        # Same labels assumed.
-        epoch_logs['val_loss'] = np.average(losses, weights=batch_sizes)
-        epoch_logs['val_accuracy'] = np.average(accuracies, weights=batch_sizes)
+            # Same labels assumed.
+            epoch_logs['val_accuracy'] = np.average(accuracies, weights=batch_sizes)
         return epoch_logs
 
     def build_val_enqueuer(self, validation_data):
