@@ -259,7 +259,7 @@ class ModelForManyData(AbstractModel):
     def stateful_metric_names(self):
         return ["loss", "accuracy", "val_loss", "val_accuracy"]
 
-    def get_callbacks_for_multi_input(self, temp_best_path, save_weights_only= False):
+    def get_callbacks_for_multi_input(self, temp_best_path, save_weights_only=False):
         base_callbacks = self.get_callbacks(temp_best_path, save_weights_only)
         if base_callbacks is None or base_callbacks == []:
             return [self.model.history]
@@ -626,7 +626,6 @@ class ModelForManyData(AbstractModel):
         finally:
 
             if enqueuer is not None:
-                print(type(enqueuer))
                 enqueuer.stop()
             #finally:
             #    if val_enqueuer is not None:

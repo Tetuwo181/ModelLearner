@@ -1,9 +1,7 @@
-from model_merger.type import Merge, Loss, TrainableModelIndex
 from model_merger.proc.calculator import LCaliculator, contrastive_loss
 from keras.models import Model
-from keras.layers import Input, Concatenate, Reshape
+from keras.layers import Input
 from model_merger.proc.checkpoint import BaseModelCheckPointer
-import numpy as np
 
 
 class SiameseBuilder(object):

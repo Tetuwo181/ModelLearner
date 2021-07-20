@@ -1,9 +1,9 @@
-from keras.callbacks import LambdaCallback
+from keras.callbacks import Callback
 from keras.models import Model
 import numpy as np
 
 
-class BaseModelCheckPointer(LambdaCallback):
+class BaseModelCheckPointer(Callback):
 
     def __init__(self,
                  model,
