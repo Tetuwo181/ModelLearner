@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def build_batch_for_shame_learner(data_batch, teachers):
+def build_batch_for_siamese_learner(data_batch, teachers):
     data_teacher_pair = [(data, teacher) for data, teacher in zip(data_batch, teachers)]
     shuffled_dataset = np.random.permutation(data_teacher_pair)
     other_batch = np.array([data[0] for data in shuffled_dataset])
