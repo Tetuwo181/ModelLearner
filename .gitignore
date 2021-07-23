@@ -8,6 +8,7 @@ tflog/
 .idea/
 tmp/
 results/
+ConfigFiles/
 url.txt
 *.h5
 datasets
