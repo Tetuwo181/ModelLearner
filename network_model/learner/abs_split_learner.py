@@ -232,8 +232,9 @@ class AbsModelLearner(ABC):
                                                                classes=self.class_list,
                                                                class_mode=self.class_mode)
 
-    @abstractmethod
     def build_model(self,
+                    model_dir_path: str,
+                    result_name: str,
                     tmp_model_path: str = None,
                     monitor: str = "") -> LearnModel:
         pass
@@ -266,7 +267,7 @@ class AbsModelLearner(ABC):
                    steps_per_epoch=train_steps_per_epoch,
                    validation_steps=test_steps_per_epoch,
                    dir_path=result_dir_path,
-                   model_name=model_name+"val",
+                   model_name=result_name+"val",
                    save_weights_only=save_weights_only,
                    will_use_multi_inputs_per_one_image=will_use_multi_inputs_per_one_image,
                    input_data_preprocess_for_building_multi_data=input_data_preprocess_for_building_multi_data,
@@ -331,7 +332,7 @@ class AbsModelLearner(ABC):
                                  will_use_multi_inputs_per_one_image: bool = False,
                                  input_data_preprocess_for_building_multi_data=None,
                                  output_data_preprocess_for_building_multi_data=None) -> LearnModel:
-        model = self.build_model(tmp_model_path, monitor)
+        model = self.build_model(result_dir_path, result_name, tmp_model_path, monitor)
         train_generator = self.build_train_generator(batch_size, original_dir)
         data_num = count_data_num_in_dir(original_dir)
         model.fit_generator(train_generator,
@@ -434,9 +435,11 @@ class AbsModelLearner(ABC):
         data_picker = BaggingDataPicker(pick_data_num, build_dataset_num)
         train_base_dir, validation_dir = self.build_train_validation_dir_paths(dataset_root_dir)
         bagging_dir = data_picker.copy_dataset_for_bagging(train_base_dir)
-        model_base = [self.build_model(tmp_model_path, monitor) for _ in range(data_picker.build_dataset_num)]
+        model_base = [self.build_model(result_dir_path, result_name+index_name, tmp_model_path, monitor) for
+                      index_name in os.listdir(bagging_dir)]
         bagging_train_dirs = [os.path.join(bagging_dir, dir_name) for dir_name in os.listdir(bagging_dir)]
         result_names = [result_name + dir_name for dir_name in os.listdir(bagging_dir)]
+        print(result_names)
         return [self.train_with_validation_from_model(model,
                                                       result_dir_path,
                                                       bagging_train_dir,
@@ -457,5 +460,5 @@ class AbsModelLearner(ABC):
                                                            batch_size=32):
         train_generator = self.build_train_generator(batch_size, train_dir)
         test_generator = self.build_test_generator(batch_size, validation_dir)
-        return train_generator, len(train_generator), test_generator, len(test_generator)
+        return train_generator, len(train_generator), test_generator, len(test_generator) - 1
 

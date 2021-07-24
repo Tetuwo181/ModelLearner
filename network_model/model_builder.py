@@ -69,14 +69,14 @@ def build_with_merge_wrapper(base_model_num: int,
                                                 model_name)
 
 
-def build_siamese(save_base_filepath: str,
-                  q: float,
+def build_siamese(q: float,
                   img_size: types_of_loco.input_img_size = 28,
                   channels: int = 3,
                   model_name: str = "model1",
                   optimizer: Optimizer = SGD(),
                   save_best_only=True,
-                  save_weights_only=False):
+                  save_weights_only=False,
+                  save_base_filepath: str = None):
     def build(class_num: int):
         base_model = builder(class_num, img_size, channels, optimizer, model_name)
         shame_builder = SiameseBuilder(base_model)

@@ -504,26 +504,30 @@ class ModelForManyData(AbstractModel):
         outs_per_batch = []
         batch_sizes = []
         while steps_done < steps:
-            x, y, sample_weight = self.build_one_batch_dataset(val_enqueuer_gen,
-                                                               input_data_preprocess_for_building_multi_data,
-                                                               output_data_preprocess_for_building_multi_data)
-            val_outs = self.model.evaluate(x, y, sample_weight=sample_weight)
-            val_outs = to_list(val_outs)
-            outs_per_batch.append(val_outs)
-            if x is None or len(x) == 0:
-                # Handle data tensors support when no input given
-                # step-size = 1 for data tensors
-                batch_size = 1
-            elif isinstance(x, list):
-                batch_size = x[0].shape[0]
-            elif isinstance(x, dict):
-                batch_size = list(x.values())[0].shape[0]
-            else:
-                batch_size = x.shape[0]
-            if batch_size == 0:
-                raise ValueError('Received an empty batch. '
-                                 'Batches should contain '
-                                 'at least one item.')
+            try:
+                x, y, sample_weight = self.build_one_batch_dataset(val_enqueuer_gen,
+                                                                   input_data_preprocess_for_building_multi_data,
+                                                                   output_data_preprocess_for_building_multi_data)
+                val_outs = self.model.evaluate(x, y, verbose=0, sample_weight=sample_weight)
+                val_outs = to_list(val_outs)
+                outs_per_batch.append(val_outs)
+                if x is None or len(x) == 0:
+                    # Handle data tensors support when no input given
+                    # step-size = 1 for data tensors
+                    batch_size = 1
+                elif isinstance(x, list):
+                    batch_size = x[0].shape[0]
+                elif isinstance(x, dict):
+                    batch_size = list(x.values())[0].shape[0]
+                else:
+                    batch_size = x.shape[0]
+                if batch_size == 0:
+                    raise ValueError('Received an empty batch. '
+                                     'Batches should contain '
+                                     'at least one item.')
+            except Exception as e:
+                steps_done += 1
+                continue
             steps_done += 1
             batch_sizes.append(batch_size)
         losses = [out[0] for out in outs_per_batch]

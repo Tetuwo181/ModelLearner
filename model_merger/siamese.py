@@ -36,7 +36,7 @@ class SiameseBuilder(object):
     def build_shame_trainer_for_classifivation(self,
                                                q: float,
                                                optimizer,
-                                               filepath,
+                                               filepath=None,
                                                save_best_only=True,
                                                save_weights_only=False):
         calculator = LCaliculator(q)
@@ -45,13 +45,24 @@ class SiameseBuilder(object):
         output_loss = calculator.build_loss_layer()(predict_outputs)
         train_model = Model(inputs=inputs, outputs=output_loss)
         train_model.compile(optimizer=optimizer, loss=contrastive_loss, metrics=['accuracy'])
-        base_model_checkpoint = BaseModelCheckPointer(self.__base_model,
-                                                      filepath,
-                                                      self.__monitor,
-                                                      save_best_only,
-                                                      save_weights_only,
-                                                      self.__mode)
         train_model.summary()
-        return train_model, [base_model_checkpoint]
+        if filepath is not None:
+            base_model_checkpoint = BaseModelCheckPointer(self.__base_model,
+                                                          filepath,
+                                                          self.__monitor,
+                                                          save_best_only,
+                                                          save_weights_only,
+                                                          self.__mode)
+            return train_model, [base_model_checkpoint]
+
+        def build_checkpoint(base_filepath):
+            return BaseModelCheckPointer(self.__base_model,
+                                         base_filepath,
+                                         self.__monitor,
+                                         save_best_only,
+                                         save_weights_only,
+                                         self.__mode)
+
+        return train_model, build_checkpoint
 
 

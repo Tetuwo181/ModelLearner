@@ -58,12 +58,34 @@ class ModelLearner(AbsModelLearner):
                          after_learned_process,
                          class_mode)
 
-    def build_model(self,
-                    tmp_model_path: str = None,
-                    monitor: str = "") -> md.ModelForManyData:
-        build_result = self.model_builder(self.class_num) if tmp_model_path is None else self.model_builder(tmp_model_path)
-        model = build_result[0] if type(build_result) is tuple else build_result
-        callbacks = self.callbacks + build_result[1] if type(build_result) is tuple else self.callbacks
+    def build_model_from_result(self,
+                                build_result,
+                                model_dir_path: str,
+                                result_name: str,
+                                monitor: str = ""):
+        if type(build_result) is not tuple:
+            model = build_result
+            return md.ModelForManyData(model,
+                                       self.class_list,
+                                       callbacks=self.callbacks,
+                                       monitor=monitor,
+                                       will_save_h5=self.will_save_h5,
+                                       preprocess_for_model=self.preprocess_for_model,
+                                       after_learned_process=self.after_learned_process)
+        model = build_result[0]
+        if type(build_result[1]) is list:
+            callbacks = self.callbacks + build_result[1]
+            return md.ModelForManyData(model,
+                                       self.class_list,
+                                       callbacks=callbacks,
+                                       monitor=monitor,
+                                       will_save_h5=self.will_save_h5,
+                                       preprocess_for_model=self.preprocess_for_model,
+                                       after_learned_process=self.after_learned_process)
+        base_model_name = result_name + "original.h5" if self.will_save_h5 else result_name + "original"
+        callbacks = self.callbacks + [build_result[1](os.path.join(model_dir_path,
+                                                                   result_name,
+                                                                   base_model_name))]
         return md.ModelForManyData(model,
                                    self.class_list,
                                    callbacks=callbacks,
@@ -71,6 +93,17 @@ class ModelLearner(AbsModelLearner):
                                    will_save_h5=self.will_save_h5,
                                    preprocess_for_model=self.preprocess_for_model,
                                    after_learned_process=self.after_learned_process)
+
+    def build_model(self,
+                    model_dir_path: str,
+                    result_name: str,
+                    tmp_model_path: str = None,
+                    monitor: str = "") -> md.ModelForManyData:
+        build_result = self.model_builder(self.class_num) if tmp_model_path is None else self.model_builder(tmp_model_path)
+        return self.build_model_from_result(build_result,
+                                            model_dir_path,
+                                            result_name,
+                                            monitor)
 
     def train_with_validation_from_model(self,
                                          model: md.ModelForManyData,
@@ -127,7 +160,7 @@ class ModelLearner(AbsModelLearner):
         :param output_data_preprocess_for_building_multi_data:
         :return: 学習済みモデル
         """
-        model_val = self.build_model(tmp_model_path, monitor)
+        model_val = self.build_model(result_dir_path, result_name, tmp_model_path, monitor)
         train_dir, validation_dir = self.build_train_validation_dir_paths(dataset_root_dir)
         return self.train_with_validation_from_model(model_val,
                                                      result_dir_path,
