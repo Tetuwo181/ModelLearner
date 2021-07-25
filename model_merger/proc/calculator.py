@@ -1,14 +1,11 @@
 from math import e as exponential
-import numpy as np
 from keras.layers import Lambda
-import tensorflow as tf
-from keras.callbacks import Callback
 import keras.backend as K
 
 
 def calc_l1_norm(vects):
     output_base, output_other = vects
-    return K.sum(output_base-output_other, axis=1, keepdims=True)
+    return K.sum(K.abs(output_base-output_other), axis=1, keepdims=True)
 
 
 def calc_l2_norm(vects):
@@ -52,6 +49,10 @@ class LCaliculator(object):
 
     @property
     def default_loss_func(self):
+        """
+
+        :return: https://www.mdpi.com/2073-8994/10/9/385の論文に掲載されている損失関数
+        """
         def loss(y_true, y_pred):
             return y_true*self.l_plus(y_pred) + (1-y_true)*self.l_minus(y_pred)
         return loss
