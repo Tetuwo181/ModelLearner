@@ -1,4 +1,4 @@
-from model_merger.proc.calculator import LCaliculator, contrastive_loss
+from model_merger.proc.calculator import LCaliculator, calc_l1_norm
 from keras.models import Model
 from keras.layers import Input
 from model_merger.proc.checkpoint import BaseModelCheckPointer
@@ -36,15 +36,17 @@ class SiameseBuilder(object):
     def build_shame_trainer_for_classifivation(self,
                                                q: float,
                                                optimizer,
+                                               loss_func=None,
+                                               calc_distance=calc_l1_norm,
                                                filepath=None,
                                                save_best_only=True,
                                                save_weights_only=False):
-        calculator = LCaliculator(q)
+        calculator = LCaliculator(q, loss_func, calc_distance)
         inputs = [self.input_layer, self.input_layer]
         predict_outputs = [self.__base_model(input_batch) for input_batch in inputs]
         output_loss = calculator.build_loss_layer()(predict_outputs)
         train_model = Model(inputs=inputs, outputs=output_loss)
-        train_model.compile(optimizer=optimizer, loss=contrastive_loss, metrics=['accuracy'])
+        train_model.compile(optimizer=optimizer, loss=calculator.loss_func, metrics=['accuracy'])
         train_model.summary()
         if filepath is not None:
             base_model_checkpoint = BaseModelCheckPointer(self.__base_model,
