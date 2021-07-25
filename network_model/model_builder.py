@@ -13,6 +13,7 @@ from model_merger.merge_model import ModelMerger
 from keras.layers import Concatenate
 from keras.callbacks import Callback
 from model_merger.siamese import SiameseBuilder
+from model_merger.proc.calculator import LCaliculator, calc_l1_norm
 
 
 ModelBuilderResult = Union[keras.engine.training.Model, List[Callback]]
@@ -74,6 +75,8 @@ def build_siamese(q: float,
                   channels: int = 3,
                   model_name: str = "model1",
                   optimizer: Optimizer = SGD(),
+                  loss_func=None,
+                  calc_distance=calc_l1_norm,
                   save_best_only=True,
                   save_weights_only=False,
                   save_base_filepath: str = None):
@@ -82,6 +85,8 @@ def build_siamese(q: float,
         shame_builder = SiameseBuilder(base_model)
         return shame_builder.build_shame_trainer_for_classifivation(q,
                                                                     optimizer,
+                                                                    loss_func,
+                                                                    calc_distance,
                                                                     save_base_filepath,
                                                                     save_best_only,
                                                                     save_weights_only
