@@ -8,7 +8,6 @@ from network_model import model as md
 from network_model.model_builder import ModelBuilder
 from DataIO.data_loader import NormalizeType
 from network_model.learner.abs_split_learner import AbsModelLearner
-from network_model.abstract_model import ModelPreProcessor
 
 
 class ModelLearner(AbsModelLearner):
@@ -24,7 +23,7 @@ class ModelLearner(AbsModelLearner):
                  train_dir_name: str = "train",
                  validation_name: str = "validation",
                  will_save_h5: bool = True,
-                 preprocess_for_model: ModelPreProcessor = None,
+                 preprocess_for_model = None,
                  after_learned_process: Optional[Callable[[None], None]] = None,
                  class_mode: Optional[str] = None):
         """
@@ -116,8 +115,7 @@ class ModelLearner(AbsModelLearner):
                                          model_name: str = "model",
                                          save_weights_only: bool = False,
                                          will_use_multi_inputs_per_one_image: bool = False,
-                                         input_data_preprocess_for_building_multi_data=None,
-                                         output_data_preprocess_for_building_multi_data=None) -> md.ModelForManyData:
+                                         data_preprocess=None) -> md.ModelForManyData:
         return super().train_with_validation_from_model(model,
                                                         result_dir_path,
                                                         train_dir,
@@ -128,8 +126,7 @@ class ModelLearner(AbsModelLearner):
                                                         model_name,
                                                         save_weights_only,
                                                         will_use_multi_inputs_per_one_image,
-                                                        input_data_preprocess_for_building_multi_data,
-                                                        output_data_preprocess_for_building_multi_data)
+                                                        data_preprocess)
 
     def train_with_validation(self,
                               dataset_root_dir: str,
@@ -142,8 +139,7 @@ class ModelLearner(AbsModelLearner):
                               monitor: str = "",
                               save_weights_only: bool = False,
                               will_use_multi_inputs_per_one_image: bool = False,
-                              input_data_preprocess_for_building_multi_data=None,
-                              output_data_preprocess_for_building_multi_data=None) -> md.ModelForManyData:
+                              data_preprocess=None) -> md.ModelForManyData:
         """
         検証用データがある場合の学習
         :param dataset_root_dir: データが格納されたディレクトリ
@@ -156,8 +152,7 @@ class ModelLearner(AbsModelLearner):
         :param monitor: モデルの途中で記録するパラメータ　デフォルトだと途中で記録しない
         :param save_weights_only:
         :param will_use_multi_inputs_per_one_image:
-        :param input_data_preprocess_for_building_multi_data:
-        :param output_data_preprocess_for_building_multi_data:
+        :param data_preprocess:
         :return: 学習済みモデル
         """
         model_val = self.build_model(result_dir_path, result_name, tmp_model_path, monitor)
@@ -172,7 +167,6 @@ class ModelLearner(AbsModelLearner):
                                                      model_name,
                                                      save_weights_only,
                                                      will_use_multi_inputs_per_one_image,
-                                                     input_data_preprocess_for_building_multi_data,
-                                                     output_data_preprocess_for_building_multi_data)
+                                                     data_preprocess)
 
 

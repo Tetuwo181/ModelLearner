@@ -6,6 +6,7 @@ from keras.preprocessing.image import ImageDataGenerator
 import numpy as np
 from network_model.generator import DataLoaderFromPaths
 from network_model.generator import DataLoaderFromPathsWithDataAugmentation
+from network_model.abstract_expantion_epoch import AbsExpantionEpoch
 from typing import List
 from typing import Tuple
 from typing import Optional
@@ -14,8 +15,9 @@ from typing import Callable
 import os
 from datetime import datetime
 from DataIO import data_loader as dl
-from network_model.abstract_model import AbstractModel, build_record_path, ModelPreProcessor
+from network_model.abstract_model import AbstractModel, build_record_path
 from util.keras_version import is_new_keras
+ModelPreProcessor = Optional[Callable[[keras.engine.training.Model],  keras.engine.training.Model]]
 
 
 class Model(AbstractModel):
@@ -208,7 +210,7 @@ class Model(AbstractModel):
         return train_rate, test_rate
 
 
-class ModelForManyData(AbstractModel):
+class ModelForManyData(AbstractModel, AbsExpantionEpoch):
     """
     メモリに乗りきらない量のデータの学習を行う場合はこちらのクラスを使う
     """
@@ -234,13 +236,13 @@ class ModelForManyData(AbstractModel):
         self.__model = model_base
         self.__model = model_base
         shape = model_base.input[0].shape.as_list() if type(model_base.input) is list else model_base.input.shape.as_list()
-        super().__init__(shape,
-                         class_set,
-                         callbacks,
-                         monitor,
-                         will_save_h5,
-                         preprocess_for_model,
-                         after_learned_process)
+        super(ModelForManyData, self).__init__(shape,
+                                               class_set,
+                                               callbacks,
+                                               monitor,
+                                               will_save_h5,
+                                               preprocess_for_model,
+                                               after_learned_process)
 
     @property
     def callbacks_metric(self):
@@ -262,41 +264,11 @@ class ModelForManyData(AbstractModel):
     def get_callbacks_for_multi_input(self, temp_best_path, save_weights_only=False):
         base_callbacks = self.get_callbacks(temp_best_path, save_weights_only)
         if base_callbacks is None or base_callbacks == []:
-            return [self.model.history]
-        return base_callbacks + [self.model.history]
+            return [self.get_model_history()]
+        return base_callbacks + [self.get_model_history()]
 
-    def build_callbacks_for_multi_input(self,
-                                        epochs: int,
-                                        temp_best_path,
-                                        steps_per_epoch: Optional[int] = None,
-                                        validation_data: Union[Optional[Tuple[np.ndarray, np.ndarray]],
-                                                               DataLoaderFromPathsWithDataAugmentation,
-                                                               DataLoaderFromPaths] = None,
-                                        save_weights_only=False):
-        """
-        一つのデータから複数の入力を使用する場合のコールバックを生成する
-        :param epochs: エポック数
-        :param temp_best_path:
-        :param steps_per_epoch:
-        :param validation_data
-        :param save_weights_only:
-        :return:
-        """
+    def set_model_history(self):
         self.__model.history = History()
-        will_validate = bool(validation_data)
-        # self.build_model_functions(will_validate)
-        build_callbacks = [self.base_logger, self.progbar_logger]
-        raw_callbacks = build_callbacks + self.get_callbacks_for_multi_input(temp_best_path, save_weights_only)
-        callbacks = CallbackList(raw_callbacks)
-        callbacks.set_model(self.model)
-        callbacks.set_params({
-            'epochs': epochs,
-            'steps': steps_per_epoch,
-            'verbose': 1,
-            'do_validation': will_validate,
-            'metrics': self.callbacks_metric,
-        })
-        return callbacks, will_validate
 
     @property
     def model(self):
@@ -313,8 +285,7 @@ class ModelForManyData(AbstractModel):
                       temp_best_path: str = "",
                       save_weights_only: bool = False,
                       will_use_multi_inputs_per_one_image: bool = False,
-                      input_data_preprocess_for_building_multi_data=None,
-                      output_data_preprocess_for_building_multi_data=None):
+                      data_preprocess=None):
         """
         モデルの適合度を算出する
         :param image_generator: ファイルパスから学習データを生成する生成器
@@ -325,8 +296,7 @@ class ModelForManyData(AbstractModel):
         :param temp_best_path:
         :param save_weights_only:
         :param will_use_multi_inputs_per_one_image:
-        :param input_data_preprocess_for_building_multi_data:
-        :param output_data_preprocess_for_building_multi_data:
+        :param data_preprocess:
         :return:
         """
         print("fit generator")
@@ -338,8 +308,7 @@ class ModelForManyData(AbstractModel):
                                                                   steps_per_epoch=steps_per_epoch,
                                                                   temp_best_path=temp_best_path,
                                                                   save_weights_only=save_weights_only,
-                                                                  input_data_preprocess_for_building_multi_data=input_data_preprocess_for_building_multi_data,
-                                                                  output_data_preprocess_for_building_multi_data=output_data_preprocess_for_building_multi_data)
+                                                                  data_preprocess=data_preprocess)
                 return self
             callbacks = self.get_callbacks(temp_best_path, save_weights_only)
             if is_new_keras():
@@ -362,8 +331,7 @@ class ModelForManyData(AbstractModel):
                                                                   validation_data=validation_data,
                                                                   temp_best_path=temp_best_path,
                                                                   save_weights_only=save_weights_only,
-                                                                  input_data_preprocess_for_building_multi_data=input_data_preprocess_for_building_multi_data,
-                                                                  output_data_preprocess_for_building_multi_data=output_data_preprocess_for_building_multi_data)
+                                                                  data_preprocess=data_preprocess)
                 return self
             print('epochs', epochs)
             callbacks = self.get_callbacks(temp_best_path, save_weights_only)
@@ -399,8 +367,7 @@ class ModelForManyData(AbstractModel):
              validation_steps: Optional[int] = None,
              save_weights_only: bool = False,
              will_use_multi_inputs_per_one_image: bool = False,
-             input_data_preprocess_for_building_multi_data=None,
-             output_data_preprocess_for_building_multi_data=None
+             input_data_preprocess_for_building_multi_data=None
              ):
         """
         指定したデータセットに対しての正答率を算出する
@@ -417,7 +384,6 @@ class ModelForManyData(AbstractModel):
         :param save_weights_only:
         :param will_use_multi_inputs_per_one_image:
         :param input_data_preprocess_for_building_multi_data:
-        :param output_data_preprocess_for_building_multi_data:
         :return:
         """
         write_dir_path = build_record_path(result_dir_name, dir_path)
@@ -430,8 +396,7 @@ class ModelForManyData(AbstractModel):
                            temp_best_path=os.path.join(write_dir_path, save_tmp_name),
                            save_weights_only=save_weights_only,
                            will_use_multi_inputs_per_one_image=will_use_multi_inputs_per_one_image,
-                           input_data_preprocess_for_building_multi_data=input_data_preprocess_for_building_multi_data,
-                           output_data_preprocess_for_building_multi_data=output_data_preprocess_for_building_multi_data)
+                           data_preprocess=input_data_preprocess_for_building_multi_data)
         self.record_model(result_dir_name, dir_path, model_name)
         self.record_conf_json(result_dir_name, dir_path, normalize_type, model_name)
 
@@ -440,96 +405,25 @@ class ModelForManyData(AbstractModel):
         if will_validate:
             self.__model._make_test_function()
 
-    def build_one_batch_dataset(self,
-                                output_generator,
-                                input_data_preprocess_for_building_multi_data=None,
-                                output_data_preprocess_for_building_multi_data=None):
-        generator_output = next(output_generator)
-
-        if not hasattr(generator_output, '__len__'):
-            raise ValueError('Output of generator should be '
-                             'a tuple `(x, y, sample_weight)` '
-                             'or `(x, y)`. Found: ' +
-                             str(generator_output))
-
-        if len(generator_output) == 2:
-            x, y = generator_output
-            sample_weight = None
-        elif len(generator_output) == 3:
-            x, y, sample_weight = generator_output
-        else:
-            raise ValueError('Output of generator should be '
-                             'a tuple `(x, y, sample_weight)` '
-                             'or `(x, y)`. Found: ' +
-                             str(generator_output))
-        if input_data_preprocess_for_building_multi_data is not None:
-            x, y = input_data_preprocess_for_building_multi_data(x, y)
-        if output_data_preprocess_for_building_multi_data is not None:
-            y = output_data_preprocess_for_building_multi_data(x, y)
-        return x, y, sample_weight
-
-    def one_batch(self,
-                  output_generator,
-                  batch_index: int,
-                  steps_done: int,
-                  callbacks: CallbackList,
-                  input_data_preprocess_for_building_multi_data=None,
-                  output_data_preprocess_for_building_multi_data=None):
-        x, y, sample_weight = self.build_one_batch_dataset(output_generator,
-                                                           input_data_preprocess_for_building_multi_data,
-                                                           output_data_preprocess_for_building_multi_data)
-        # build batch logs
-        batch_logs = {}
-        callbacks.on_batch_begin(batch_index, batch_logs)
-
-        outs = self.__model.train_on_batch(x,
+    def train_on_batch(self, x, y, sample_weight):
+        return self.__model.train_on_batch(x,
                                            y,
                                            sample_weight=sample_weight)
+
+    def add_output_param_to_batch_log_param(self, outs, batch_logs):
         outs = to_list(outs)
         batch_logs["loss"] = outs[0]
         if len(outs) > 1:
             batch_logs["accuracy"] = outs[1]
+        return batch_logs
 
-        callbacks.on_batch_end(batch_index, batch_logs)
-        return batch_index+1, steps_done+1
+    def evaluate(self, x, y, sample_weight=None):
+        return self.model.evaluate(x, y, verbose=0, sample_weight=sample_weight)
 
-    def one_batch_val(self,
-                      val_enqueuer_gen,
-                      validation_steps,
-                      epoch_logs,
-                      input_data_preprocess_for_building_multi_data=None,
-                      output_data_preprocess_for_building_multi_data=None):
-        steps = len(val_enqueuer_gen)
-        steps_done = 0
-        outs_per_batch = []
-        batch_sizes = []
-        while steps_done < steps:
-            try:
-                x, y, sample_weight = self.build_one_batch_dataset(val_enqueuer_gen,
-                                                                   input_data_preprocess_for_building_multi_data,
-                                                                   output_data_preprocess_for_building_multi_data)
-                val_outs = self.model.evaluate(x, y, verbose=0, sample_weight=sample_weight)
-                val_outs = to_list(val_outs)
-                outs_per_batch.append(val_outs)
-                if x is None or len(x) == 0:
-                    # Handle data tensors support when no input given
-                    # step-size = 1 for data tensors
-                    batch_size = 1
-                elif isinstance(x, list):
-                    batch_size = x[0].shape[0]
-                elif isinstance(x, dict):
-                    batch_size = list(x.values())[0].shape[0]
-                else:
-                    batch_size = x.shape[0]
-                if batch_size == 0:
-                    raise ValueError('Received an empty batch. '
-                                     'Batches should contain '
-                                     'at least one item.')
-            except Exception as e:
-                steps_done += 1
-                continue
-            steps_done += 1
-            batch_sizes.append(batch_size)
+    def get_model_history(self):
+        return self.model.history
+
+    def add_output_val_param_to_epoch_log_param(self, outs_per_batch, batch_sizes, epoch_logs):
         losses = [out[0] for out in outs_per_batch]
         epoch_logs['val_loss'] = np.average(losses, weights=batch_sizes)
         if len(outs_per_batch[0]) > 1:
@@ -538,50 +432,8 @@ class ModelForManyData(AbstractModel):
             epoch_logs['val_accuracy'] = np.average(accuracies, weights=batch_sizes)
         return epoch_logs
 
-    def build_val_enqueuer(self, validation_data):
-        will_validate = bool(validation_data)
-        if will_validate is False:
-            return None, None, None
-        val_data = validation_data
-        val_enqueuer = OrderedEnqueuer(
-                    val_data,
-                    use_multiprocessing=False)
-        validation_steps = len(val_data)
-        return val_data, val_enqueuer, validation_steps if validation_steps is not None else len(validation_data)
-
-    def run_one_epoch(self,
-                      epoch: int,
-                      epoch_logs,
-                      steps_per_epoch: int,
-                      output_generator,
-                      val_data,
-                      validation_steps,
-                      callbacks: CallbackList,
-                      input_data_preprocess_for_building_multi_data=None,
-                      output_data_preprocess_for_building_multi_data=None):
-        # for m in self.model.stateful_metric_functions:
-        #   m.reset_states()
-        callbacks.on_epoch_begin(epoch)
-        steps_done = 0
-        batch_index = 0
-        while steps_done < steps_per_epoch:
-            batch_index, steps_done = self.one_batch(output_generator,
-                                                     batch_index,
-                                                     steps_done,
-                                                     callbacks,
-                                                     input_data_preprocess_for_building_multi_data,
-                                                     output_data_preprocess_for_building_multi_data)
-
-            # Epoch finished.
-            if steps_done >= steps_per_epoch and val_data is not None:
-                epoch_logs = self.one_batch_val(val_data,
-                                                validation_steps,
-                                                epoch_logs,
-                                                input_data_preprocess_for_building_multi_data,
-                                                output_data_preprocess_for_building_multi_data)
-
-        callbacks.on_epoch_end(epoch, epoch_logs)
-        return epoch+1, epoch_logs
+    def set_model_stop_training(self, will_stop_trainable):
+        self.__model.stop_training = will_stop_trainable
 
     def fit_generator_for_multi_inputs_per_one_image(self,
                                                      image_generator: Union[DataLoaderFromPathsWithDataAugmentation, DataLoaderFromPaths],
@@ -593,50 +445,15 @@ class ModelForManyData(AbstractModel):
                                                      validation_steps: Optional[int] = None,
                                                      temp_best_path: str = "",
                                                      save_weights_only: bool = False,
-                                                     input_data_preprocess_for_building_multi_data=None,
-                                                     output_data_preprocess_for_building_multi_data=None):
-        steps_per_epoch = steps_per_epoch if steps_per_epoch is None else len(image_generator)
-        callbacks, will_validate = self.build_callbacks_for_multi_input(epochs,
-                                                                        temp_best_path,
-                                                                        steps_per_epoch,
-                                                                        validation_data,
-                                                                        save_weights_only)
-        callbacks.on_train_begin()
-        enqueuer = None
-        val_enqueuer = None
-        try:
-            val_data, val_enqueuer, validation_steps = self.build_val_enqueuer(validation_data)
-            enqueuer = OrderedEnqueuer(
-                    image_generator,
-                    use_multiprocessing=False)
-            enqueuer.start(workers=1, max_queue_size=10)
-            output_generator = enqueuer.get()
+                                                     data_preprocess=None):
 
-            self.__model.stop_training = False
-            # Construct epoch logs.
-            epoch_logs = {}
-            epoch = 0
-            while epoch < epochs:
-                epoch, epoch_logs = self.run_one_epoch(epoch,
-                                                       epoch_logs,
-                                                       steps_per_epoch,
-                                                       output_generator,
-                                                       val_data,
-                                                       validation_steps,
-                                                       callbacks,
-                                                       input_data_preprocess_for_building_multi_data,
-                                                       output_data_preprocess_for_building_multi_data)
-
-        finally:
-
-            if enqueuer is not None:
-                enqueuer.stop()
-            #finally:
-            #    if val_enqueuer is not None:
-            #        print(type(val_enqueuer))
-            #        val_enqueuer.stop()
-
-        callbacks.on_train_end()
-        return self.model.history
+        return self.fit_generator_for_expantion(image_generator,
+                                                epochs,
+                                                validation_data,
+                                                steps_per_epoch,
+                                                validation_steps,
+                                                temp_best_path,
+                                                save_weights_only,
+                                                data_preprocess)
 
 

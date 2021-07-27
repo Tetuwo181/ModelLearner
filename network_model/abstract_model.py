@@ -12,8 +12,6 @@ from DataIO import data_loader as dl
 from abc import ABC, abstractmethod
 from util.keras_version import is_new_keras
 
-ModelPreProcessor = Optional[Callable[[keras.engine.training.Model],  keras.engine.training.Model]]
-
 
 class AbstractModel(ABC):
     def __init__(self,
@@ -22,7 +20,7 @@ class AbstractModel(ABC):
                  callbacks: Optional[List[keras.callbacks.Callback]] = None,
                  monitor: str = "",
                  will_save_h5: bool = True,
-                 preprocess_for_model: ModelPreProcessor = None,
+                 preprocess_for_model=None,
                  after_learned_process: Optional[Callable[[None], None]] = None):
         """
 
@@ -68,7 +66,7 @@ class AbstractModel(ABC):
         return self.__input_shape
 
     @property
-    def preprocess_for_model(self) -> ModelPreProcessor:
+    def preprocess_for_model(self):
         return self.__preprocess_for_model
 
     def after_learned_process(self):
