@@ -27,7 +27,7 @@ class AbsExpantionEpoch(ABC):
         return ProgbarLogger(count_mode='steps', stateful_metrics=self.stateful_metric_names)
 
     @abstractmethod
-    def train_on_batch(self, x, y, sample_weight):
+    def train_on_batch(self, x, y, sample_weight=None):
         pass
 
     @abstractmethod

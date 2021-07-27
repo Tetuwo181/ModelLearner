@@ -234,7 +234,6 @@ class ModelForManyData(AbstractModel, AbsExpantionEpoch):
         :param after_learned_process: モデル学習後の後始末
         """
         self.__model = model_base
-        self.__model = model_base
         shape = model_base.input[0].shape.as_list() if type(model_base.input) is list else model_base.input.shape.as_list()
         super(ModelForManyData, self).__init__(shape,
                                                class_set,
@@ -405,7 +404,7 @@ class ModelForManyData(AbstractModel, AbsExpantionEpoch):
         if will_validate:
             self.__model._make_test_function()
 
-    def train_on_batch(self, x, y, sample_weight):
+    def train_on_batch(self, x, y, sample_weight=None):
         return self.__model.train_on_batch(x,
                                            y,
                                            sample_weight=sample_weight)
