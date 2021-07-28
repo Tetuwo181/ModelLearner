@@ -59,10 +59,6 @@ class ModelForManyData(AbstractKerasWrapper, AbsExpantionEpoch):
         return ['val_' + n for n in out_labels]
 
     @property
-    def will_save_h5(self):
-        return self.__will_save_h5
-
-    @property
     def base_logger(self):
         return BaseLogger(stateful_metrics=self.stateful_metric_names)
 

@@ -54,10 +54,6 @@ class Model(AbstractKerasWrapper):
     def model(self):
         return self.__model
 
-    @property
-    def will_save_h5(self):
-        return self.__will_save_h5
-
     def fit(self,
             data: np.ndarray,
             label_set: np.ndarray,
