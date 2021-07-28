@@ -19,7 +19,6 @@ class AbstractModel(ABC):
                  class_set: List[str],
                  callbacks: Optional[List[keras.callbacks.Callback]] = None,
                  monitor: str = "",
-                 will_save_h5: bool = True,
                  preprocess_for_model=None,
                  after_learned_process: Optional[Callable[[None], None]] = None):
         """
@@ -37,7 +36,6 @@ class AbstractModel(ABC):
         self.__history = None
         self.__callbacks = callbacks
         self.__monitor = monitor
-        self.__will_save_h5 = will_save_h5
         self.__preprocess_for_model = preprocess_for_model
         self.__after_learned_process = after_learned_process
         if is_new_keras() is False and self.__monitor == "val_accuracy":
@@ -48,10 +46,6 @@ class AbstractModel(ABC):
     @abstractmethod
     def model(self) -> keras.engine.training.Model:
         pass
-
-    @property
-    def will_save_h5(self):
-        return self.__will_save_h5
 
     @property
     def will_record_best_model(self):

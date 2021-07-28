@@ -1,4 +1,4 @@
-from network_model import model as md
+from network_model.wrapper.keras import many_data as md
 from sklearn.model_selection import StratifiedKFold
 import keras.engine.training
 from keras.preprocessing.image import ImageDataGenerator
@@ -8,7 +8,6 @@ from typing import Optional
 import numpy as np
 import copy
 import gc
-from enum import Enum
 from DataIO import data_loader as dl
 from util_types import two_dim
 from network_model.generator import init_loader_setting

@@ -4,7 +4,7 @@ from typing import Tuple, List, Callable
 from typing import Optional
 import keras.callbacks
 from keras.preprocessing.image import ImageDataGenerator
-from network_model import model as md
+from network_model.wrapper.keras import many_data as md
 from network_model.model_builder import ModelBuilder
 from DataIO.data_loader import NormalizeType
 from network_model.learner.abs_split_learner import AbsModelLearner

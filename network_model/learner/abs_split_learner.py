@@ -5,12 +5,12 @@ from typing import Tuple, List, Union, Callable
 from typing import Optional
 import keras.callbacks
 from keras.preprocessing.image import ImageDataGenerator
-from network_model import model as md
+from network_model.wrapper.keras import many_data as md
 from network_model.model_builder import ModelBuilder
 from DataIO.data_loader import count_data_num_in_dir
 from DataIO.data_loader import NormalizeType
 from DataIO.data_choicer import BaggingDataPicker, ChoiceDataNum
-from abc import ABC, abstractmethod
+from abc import ABC
 from network_model.model_for_distillation import ModelForDistillation
 
 

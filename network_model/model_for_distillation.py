@@ -1,14 +1,11 @@
 import keras.callbacks
-import numpy as np
 from typing import List
-from typing import Tuple
 from typing import Optional
-from typing import Union
 import os
 from datetime import datetime
 from DataIO import data_loader as dl
 from network_model.distillation.flow_wrapper import FlowForDistillation
-from network_model.abstract_model import AbstractModel, build_record_path
+from network_model.wrapper.abstract_model import AbstractModel, build_record_path
 
 
 class ModelForDistillation(AbstractModel):
