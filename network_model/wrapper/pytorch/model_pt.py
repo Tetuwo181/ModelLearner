@@ -71,9 +71,13 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         converted = torch.from_numpy(param)
         return converted.to(self.__torch_device)
 
+    def convert_data_for_model(self, x, y):
+        return self.numpy2tensor(x), self.numpy2tensor(y)
+
     def train_on_batch(self, x, y, sample_weight=None):
         self.__model.train()
         self.__optimizer.zero_grad()
+        x, y = self.convert_data_for_model(x, y)
         outputs = self.__model(x)
         loss = self.__loss(outputs, y)
         loss.backward()
@@ -86,6 +90,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
 
     def evaluate(self, x, y, sample_weight=None):
         self.__model.eval()
+        x, y = self.convert_data_for_model(x, y)
         outputs = self.__model(x)
         loss = self.__loss(outputs, y)
         running_loss = loss.item()

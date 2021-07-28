@@ -1,7 +1,6 @@
 import keras.callbacks
 from keras.callbacks import ProgbarLogger, BaseLogger, History
 from keras.utils.generic_utils import to_list
-from keras.preprocessing.image import ImageDataGenerator
 import numpy as np
 from network_model.generator import DataLoaderFromPaths
 from network_model.generator import DataLoaderFromPathsWithDataAugmentation
@@ -13,9 +12,8 @@ from typing import Optional
 from typing import Union
 from typing import Callable
 import os
-from datetime import datetime
 from DataIO import data_loader as dl
-from network_model.wrapper.abstract_model import AbstractModel, build_record_path
+from network_model.wrapper.abstract_model import build_record_path
 from util.keras_version import is_new_keras
 ModelPreProcessor = Optional[Callable[[keras.engine.training.Model],  keras.engine.training.Model]]
 

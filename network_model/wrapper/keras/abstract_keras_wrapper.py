@@ -2,7 +2,7 @@ import keras.callbacks
 from typing import List
 from typing import Optional
 from typing import Callable
-from network_model.wrapper.abstract_model import AbstractModel, build_record_path
+from network_model.wrapper.abstract_model import AbstractModel
 from abc import ABC
 ModelPreProcessor = Optional[Callable[[keras.engine.training.Model],  keras.engine.training.Model]]
 
