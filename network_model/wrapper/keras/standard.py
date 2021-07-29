@@ -95,7 +95,7 @@ class Model(AbstractKerasWrapper):
         :return:
         """
         callbacks = self.get_callbacks(temp_best_path, save_weights_only)
-        print("fit generator")
+        print("fit builder")
         image_generator.fit(data)
         print("start learning")
         self.__model = self.run_preprocess_model(self.__model)

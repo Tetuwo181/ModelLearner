@@ -14,14 +14,12 @@ from keras.layers import Concatenate
 from keras.callbacks import Callback
 from model_merger.siamese import SiameseBuilder
 from model_merger.proc.calculator import LCaliculator, calc_l1_norm
-from torch.nn.modules.loss import _Loss
-import torch.nn
 
-DLModel = Union[keras.engine.training.Model, torch.nn.Module]
-ModelBuilderResult = Union[DLModel, Tuple[DLModel, List[Callback]], Tuple[DLModel, Callable[str, Callback]]]
+
+ModelBuilderResult = Union[keras.engine.training.Model, List[Callback]]
 
 ModelBuilder = Union[Callable[[int], ModelBuilderResult],
-                     Callable[[Union[str, Tuple[str, str]]], ModelBuilderResult],
+                     Callable[[Union[str, Tuple[str, str]]], keras.engine.training.Model],
                      DistllationModelIncubator]
 
 

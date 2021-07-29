@@ -10,7 +10,7 @@ import copy
 import gc
 from DataIO import data_loader as dl
 from util_types import two_dim
-from network_model.generator import init_loader_setting
+from network_model.builder import init_loader_setting
 
 
 img_size, size_converter = two_dim.init_pair_type(int)

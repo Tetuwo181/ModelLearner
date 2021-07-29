@@ -2,8 +2,8 @@ import keras.callbacks
 from keras.callbacks import ProgbarLogger, BaseLogger, History
 from keras.utils.generic_utils import to_list
 import numpy as np
-from network_model.generator import DataLoaderFromPaths
-from network_model.generator import DataLoaderFromPathsWithDataAugmentation
+from network_model.builder import DataLoaderFromPaths
+from network_model.builder import DataLoaderFromPathsWithDataAugmentation
 from network_model.wrapper.abstract_expantion_epoch import AbsExpantionEpoch
 from network_model.wrapper.keras.abstract_keras_wrapper import AbstractKerasWrapper
 from typing import List
@@ -106,7 +106,7 @@ class ModelForManyData(AbstractKerasWrapper, AbsExpantionEpoch):
         :param data_preprocess:
         :return:
         """
-        print("fit generator")
+        print("fit builder")
         self.__model = self.run_preprocess_model(self.__model)
         if validation_data is None:
             if will_use_multi_inputs_per_one_image:

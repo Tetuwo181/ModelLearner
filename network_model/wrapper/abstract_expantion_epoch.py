@@ -74,7 +74,7 @@ class AbsExpantionEpoch(ABC):
         generator_output = next(output_generator)
 
         if not hasattr(generator_output, '__len__'):
-            raise ValueError('Output of generator should be '
+            raise ValueError('Output of builder should be '
                              'a tuple `(x, y, sample_weight)` '
                              'or `(x, y)`. Found: ' +
                              str(generator_output))
@@ -85,7 +85,7 @@ class AbsExpantionEpoch(ABC):
         elif len(generator_output) == 3:
             x, y, sample_weight = generator_output
         else:
-            raise ValueError('Output of generator should be '
+            raise ValueError('Output of builder should be '
                              'a tuple `(x, y, sample_weight)` '
                              'or `(x, y)`. Found: ' +
                              str(generator_output))

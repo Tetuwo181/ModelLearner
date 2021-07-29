@@ -48,7 +48,7 @@ class ModelForDistillation(AbstractModel):
         :return:
         """
         callbacks = self.get_callbacks(temp_best_path, save_weights_only)
-        print("fit generator")
+        print("fit builder")
         if validation_data is None:
             self.__history = self.__student_model.fit_generator(image_generator,
                                                                 steps_per_epoch=steps_per_epoch,
