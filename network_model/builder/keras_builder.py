@@ -13,7 +13,7 @@ from model_merger.merge_model import ModelMerger
 from keras.layers import Concatenate
 from keras.callbacks import Callback
 from model_merger.siamese import SiameseBuilder
-from model_merger.proc.calculator import LCaliculator, calc_l1_norm
+from model_merger.proc.calculator import calc_l1_norm
 
 
 ModelBuilderResult = Union[keras.engine.training.Model, List[Callback]]

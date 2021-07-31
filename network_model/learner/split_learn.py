@@ -23,7 +23,7 @@ class ModelLearner(AbsModelLearner):
                  train_dir_name: str = "train",
                  validation_name: str = "validation",
                  will_save_h5: bool = True,
-                 preprocess_for_model = None,
+                 preprocess_for_model=None,
                  after_learned_process: Optional[Callable[[None], None]] = None,
                  class_mode: Optional[str] = None):
         """
@@ -62,6 +62,13 @@ class ModelLearner(AbsModelLearner):
                                 model_dir_path: str,
                                 result_name: str,
                                 monitor: str = ""):
+        if callable(build_result):
+            return build_result(self.class_list,
+                                self.callbacks,
+                                monitor,
+                                self.preprocess_for_model,
+                                self.after_learned_process)
+
         if type(build_result) is not tuple:
             model = build_result
             return md.ModelForManyData(model,
@@ -98,7 +105,8 @@ class ModelLearner(AbsModelLearner):
                     result_name: str,
                     tmp_model_path: str = None,
                     monitor: str = "") -> md.ModelForManyData:
-        build_result = self.model_builder(self.class_num) if tmp_model_path is None else self.model_builder(tmp_model_path)
+        model_builder_input = self.class_num if tmp_model_path is None else tmp_model_path
+        build_result = self.model_builder(model_builder_input)
         return self.build_model_from_result(build_result,
                                             model_dir_path,
                                             result_name,

@@ -10,12 +10,13 @@ from torch.optim.optimizer import Optimizer
 from torch.nn.modules.loss import _Loss
 from torch import max as torch_max
 import torch
+import torch.nn
 
 
 class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
 
     @staticmethod
-    def build(model_base,
+    def build(model_base:torch.nn.Module,
               optimizer: Optimizer,
               loss: _Loss,
               class_set: List[str],
@@ -34,6 +35,26 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                                preprocess_for_model,
                                after_learned_process
                                )
+
+    @staticmethod
+    def build_wrapper(model_base: torch.nn.Module,
+                      optimizer: Optimizer,
+                      loss: _Loss):
+
+        def build_model(class_set: List[str],
+                        callbacks: Optional[List[keras.callbacks.Callback]] = None,
+                        monitor: str = "",
+                        preprocess_for_model=None,
+                        after_learned_process: Optional[Callable[[None], None]] = None):
+            return ModelForPytorch.build(model_base,
+                                         optimizer,
+                                         loss,
+                                         class_set,
+                                         callbacks,
+                                         monitor,
+                                         preprocess_for_model,
+                                         after_learned_process)
+        return build_model
 
     def __init__(self,
                  model_base,

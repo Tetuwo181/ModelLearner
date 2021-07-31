@@ -14,11 +14,12 @@ from keras.layers import Concatenate
 from keras.callbacks import Callback
 from model_merger.siamese import SiameseBuilder
 from model_merger.proc.calculator import LCaliculator, calc_l1_norm
-from torch.nn.modules.loss import _Loss
+from torch.optim.optimizer import Optimizer as TorchOptimizer
 import torch.nn
+from network_model.builder import keras_builder, pytorch_builder
 
 DLModel = Union[keras.engine.training.Model, torch.nn.Module]
-ModelBuilderResult = Union[DLModel, Tuple[DLModel, List[Callback]], Tuple[DLModel, Callable[str, Callback]]]
+ModelBuilderResult = Union[DLModel, Tuple[DLModel, List[Callback]], Tuple[DLModel, Callable[[str], Callback]]]
 
 ModelBuilder = Union[Callable[[int], ModelBuilderResult],
                      Callable[[Union[str, Tuple[str, str]]], ModelBuilderResult],
@@ -51,9 +52,9 @@ def build_wrapper(img_size: types_of_loco.input_img_size = 28,
     :param optimizer:
     :return:
     """
-    if model_name == "tempload":
-        return lambda load_path: tempload.builder(load_path, optimizer)
-    return lambda class_num: builder(class_num, img_size, channels, optimizer, model_name)
+    if isinstance(optimizer, TorchOptimizer):
+        return pytorch_builder.build_wrapper(img_size, channels, model_name, optimizer)
+    return keras_builder.build_wrapper(img_size, channels, model_name, optimizer)
 
 
 def build_with_merge_wrapper(base_model_num: int,

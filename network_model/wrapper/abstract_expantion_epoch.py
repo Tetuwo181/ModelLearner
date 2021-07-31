@@ -1,14 +1,12 @@
 from keras.callbacks import CallbackList, ProgbarLogger, BaseLogger, History
-from keras.utils.data_utils import Sequence, OrderedEnqueuer
-from keras.utils.generic_utils import to_list, unpack_singleton
+from keras.utils.data_utils import OrderedEnqueuer
+from keras.utils.generic_utils import to_list
 from abc import ABC, abstractmethod
 from network_model.generator import DataLoaderFromPaths
 from network_model.generator import DataLoaderFromPathsWithDataAugmentation
-from typing import List
 from typing import Tuple
 from typing import Optional
 from typing import Union
-from typing import Callable
 import numpy as np
 
 
