@@ -52,8 +52,11 @@ def build_wrapper(img_size: types_of_loco.input_img_size = 28,
     :param optimizer:
     :return:
     """
-    if isinstance(optimizer, TorchOptimizer):
-        return pytorch_builder.build_wrapper(img_size, channels, model_name, optimizer)
+    if callable(optimizer):
+        return pytorch_builder.build_wrapper(img_size=img_size,
+                                             channels=channels,
+                                             model_name=model_name,
+                                             optimizer=optimizer)
     return keras_builder.build_wrapper(img_size, channels, model_name, optimizer)
 
 

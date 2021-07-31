@@ -2,8 +2,6 @@ import keras.callbacks
 from keras.callbacks import ProgbarLogger, BaseLogger, History
 from keras.utils.generic_utils import to_list
 import numpy as np
-from network_model.builder import DataLoaderFromPaths
-from network_model.builder import DataLoaderFromPathsWithDataAugmentation
 from network_model.wrapper.abstract_expantion_epoch import AbsExpantionEpoch
 from network_model.wrapper.keras.abstract_keras_wrapper import AbstractKerasWrapper
 from typing import List
@@ -82,11 +80,9 @@ class ModelForManyData(AbstractKerasWrapper, AbsExpantionEpoch):
         return self.__model
 
     def fit_generator(self,
-                      image_generator: Union[DataLoaderFromPathsWithDataAugmentation, DataLoaderFromPaths],
+                      image_generator,
                       epochs: int,
-                      validation_data: Union[Optional[Tuple[np.ndarray, np.ndarray]],
-                                             DataLoaderFromPathsWithDataAugmentation,
-                                             DataLoaderFromPaths] = None,
+                      validation_data=None,
                       steps_per_epoch: Optional[int] = None,
                       validation_steps: Optional[int] = None,
                       temp_best_path: str = "",
@@ -161,11 +157,9 @@ class ModelForManyData(AbstractKerasWrapper, AbsExpantionEpoch):
         return self
 
     def test(self,
-             image_generator: Union[DataLoaderFromPathsWithDataAugmentation, DataLoaderFromPaths],
+             image_generator,
              epochs: int,
-             validation_data: Union[Optional[Tuple[np.ndarray, np.ndarray]],
-                                    DataLoaderFromPathsWithDataAugmentation,
-                                    DataLoaderFromPaths] = None,
+             validation_data=None,
              normalize_type: dl.NormalizeType = dl.NormalizeType.Div255,
              result_dir_name: str = None,
              dir_path: str = None,
@@ -243,11 +237,9 @@ class ModelForManyData(AbstractKerasWrapper, AbsExpantionEpoch):
         self.__model.stop_training = will_stop_trainable
 
     def fit_generator_for_multi_inputs_per_one_image(self,
-                                                     image_generator: Union[DataLoaderFromPathsWithDataAugmentation, DataLoaderFromPaths],
+                                                     image_generator,
                                                      epochs: int,
-                                                     validation_data: Union[Optional[Tuple[np.ndarray, np.ndarray]],
-                                                                            DataLoaderFromPathsWithDataAugmentation,
-                                                                            DataLoaderFromPaths] = None,
+                                                     validation_data=None,
                                                      steps_per_epoch: Optional[int] = None,
                                                      validation_steps: Optional[int] = None,
                                                      temp_best_path: str = "",

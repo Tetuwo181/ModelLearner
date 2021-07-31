@@ -28,6 +28,22 @@ def builder(
     return model_module.builder(class_num, img_size, channels, optimizer)
 
 
+def builder_pt(
+        class_num: int,
+        img_size: types_of_loco.input_img_size = 28,
+        model_name: str = "model1",
+) -> keras.engine.training.Model:
+    """
+    モデルを作成する
+    :param class_num : 出力するクラス数
+    :param img_size : 画像のピクセル比　整数なら指定したサイズの正方形、タプルなら(raw, cal)
+    :param model_name: インポートするモデルの名前。models_base以下のディレクトリにモデル生成器を置く
+    :return: discriminator部のモデル
+    """
+    model_module = importlib.import_module("network_model.model_base."+model_name)
+    return model_module.builder(class_num, img_size)
+
+
 def builder_with_merge(
         base_model_num: int,
         model_merger: ModelMerger,
