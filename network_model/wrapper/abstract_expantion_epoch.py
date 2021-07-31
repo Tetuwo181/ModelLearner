@@ -2,8 +2,6 @@ from keras.callbacks import CallbackList, ProgbarLogger, BaseLogger, History
 from keras.utils.data_utils import OrderedEnqueuer
 from keras.utils.generic_utils import to_list
 from abc import ABC, abstractmethod
-from network_model.generator import DataLoaderFromPaths
-from network_model.generator import DataLoaderFromPathsWithDataAugmentation
 from typing import Tuple
 from typing import Optional
 from typing import Union
@@ -101,9 +99,7 @@ class AbsExpantionEpoch(ABC):
                                       epochs: int,
                                       temp_best_path,
                                       steps_per_epoch: Optional[int] = None,
-                                      validation_data: Union[Optional[Tuple[np.ndarray, np.ndarray]],
-                                                             DataLoaderFromPathsWithDataAugmentation,
-                                                             DataLoaderFromPaths] = None,
+                                      validation_data=None,
                                       save_weights_only=False):
         """
         一つのデータから複数の入力を使用する場合のコールバックを生成する
@@ -230,11 +226,9 @@ class AbsExpantionEpoch(ABC):
         return self.add_output_val_param_to_epoch_log_param(outs_per_batch, batch_sizes, epoch_logs)
 
     def fit_generator_for_expantion(self,
-                                    image_generator: Union[DataLoaderFromPathsWithDataAugmentation, DataLoaderFromPaths],
+                                    image_generator,
                                     epochs: int,
-                                    validation_data: Union[Optional[Tuple[np.ndarray, np.ndarray]],
-                                                                          DataLoaderFromPathsWithDataAugmentation,
-                                                                          DataLoaderFromPaths] = None,
+                                    validation_data=None,
                                     steps_per_epoch: Optional[int] = None,
                                     validation_steps: Optional[int] = None,
                                     temp_best_path: str = "",
