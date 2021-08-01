@@ -80,9 +80,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         self.__loss = loss
         self.__torch_device = torch_device
         self.__model.to(self.__torch_device)
-        shape = model_base.input[0].shape.as_list() if type(model_base.input) is list else model_base.input.shape.as_list()
-        super(ModelForPytorch, self).__init__(shape,
-                                              class_set,
+        super(ModelForPytorch, self).__init__(class_set,
                                               callbacks,
                                               monitor,
                                               preprocess_for_model,
@@ -150,3 +148,9 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
     @property
     def model(self) -> keras.engine.training.Model:
         return self.__model
+
+    def build_model_file_name(self, model_name):
+        return model_name + ".pt"
+
+    def build_write_set(self):
+        return {"class_set": self.class_set}

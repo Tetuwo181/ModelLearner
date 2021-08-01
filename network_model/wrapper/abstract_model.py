@@ -15,7 +15,6 @@ from util.keras_version import is_new_keras
 
 class AbstractModel(ABC):
     def __init__(self,
-                 input_shape: Tuple[Optional[int], int, int, int],
                  class_set: List[str],
                  callbacks: Optional[List[keras.callbacks.Callback]] = None,
                  monitor: str = "",
@@ -32,7 +31,6 @@ class AbstractModel(ABC):
          :param after_learned_process: モデル学習後の後始末
          """
         self.__class_set = class_set
-        self.__input_shape = input_shape
         self.__history = None
         self.__callbacks = callbacks
         self.__monitor = monitor
@@ -54,10 +52,6 @@ class AbstractModel(ABC):
     @property
     def class_set(self):
         return self.__class_set
-
-    @property
-    def input_shape(self):
-        return self.__input_shape
 
     @property
     def preprocess_for_model(self):
@@ -131,7 +125,7 @@ class AbstractModel(ABC):
                      model_name: str = "model"):
         print("start record")
         result_path = build_record_path(result_dir_name, dir_path)
-        file_name = model_name + ".h5" if self.will_save_h5 else model_name
+        file_name = self.build_model_file_name(model_name)
         self.model.save(os.path.join(result_path, file_name))
 
     def record_conf_json(self,
@@ -141,11 +135,19 @@ class AbstractModel(ABC):
                          model_name: str = "model"):
         print("start record conf")
         result_path = build_record_path(result_dir_name, dir_path)
-        write_set = {"class_set": self.class_set, "input_shape": self.input_shape}
+        write_set = self.build_write_set()
         write_dic = {model_name: write_set}
         json_path = os.path.join(result_path, "model_conf.json")
         with open(json_path, 'w', encoding='utf8') as fw:
             json.dump(write_dic, fw, ensure_ascii=False)
+
+    @abstractmethod
+    def build_model_file_name(self, model_name):
+        pass
+
+    @abstractmethod
+    def build_write_set(self):
+        pass
 
     def record(self,
                result_dir_name: str,

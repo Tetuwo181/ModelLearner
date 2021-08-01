@@ -17,7 +17,8 @@ class AbstractKerasWrapper(AbstractModel, ABC):
                  preprocess_for_model: ModelPreProcessor = None,
                  after_learned_process: Optional[Callable[[None], None]] = None):
         self.__will_save_h5 = will_save_h5
-        super(AbstractKerasWrapper, self).__init__(shape,
+        self.__input_shape = shape
+        super(AbstractKerasWrapper, self).__init__(
                                                    class_set,
                                                    callbacks,
                                                    monitor,
@@ -27,3 +28,13 @@ class AbstractKerasWrapper(AbstractModel, ABC):
     @property
     def will_save_h5(self):
         return self.__will_save_h5
+
+    @property
+    def input_shape(self):
+        return self.__input_shape
+
+    def build_write_set(self):
+        return {"class_set": self.class_set, "input_shape": self.input_shape}
+
+    def build_model_file_name(self, model_name):
+        return model_name + ".h5" if self.will_save_h5 else model_name
