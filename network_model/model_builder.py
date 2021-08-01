@@ -56,7 +56,7 @@ def build_wrapper(img_size: types_of_loco.input_img_size = 28,
         return pytorch_builder.build_wrapper(img_size=img_size,
                                              channels=channels,
                                              model_name=model_name,
-                                             optimizer=optimizer)
+                                             opt_builder=optimizer)
     return keras_builder.build_wrapper(img_size, channels, model_name, optimizer)
 
 
