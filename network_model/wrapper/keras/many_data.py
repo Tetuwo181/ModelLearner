@@ -188,7 +188,7 @@ class ModelForManyData(AbstractKerasWrapper, AbsExpantionEpoch):
         :return:
         """
         write_dir_path = build_record_path(result_dir_name, dir_path)
-        save_tmp_name = model_name + "_best.h5" if self.will_save_h5 else model_name + "_best"
+        save_tmp_name = self.build_best_model_file_name(model_name)
         self.fit_generator(image_generator,
                            epochs,
                            validation_data,

@@ -11,6 +11,8 @@ from torch.nn.modules.loss import _Loss
 from torch import max as torch_max
 import torch
 import torch.nn
+from network_model.wrapper.abstract_model import build_record_path
+from DataIO import data_loader as dl
 
 
 class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
@@ -152,5 +154,97 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
     def build_model_file_name(self, model_name):
         return model_name + ".pt"
 
+    def build_best_model_file_name(self, model_name):
+        return model_name + "_best.pt"
+
     def build_write_set(self):
         return {"class_set": self.class_set}
+
+    def test(self,
+             image_generator,
+             epochs: int,
+             validation_data=None,
+             normalize_type: dl.NormalizeType = dl.NormalizeType.Div255,
+             result_dir_name: str = None,
+             dir_path: str = None,
+             model_name: str = None,
+             steps_per_epoch: Optional[int] = None,
+             validation_steps: Optional[int] = None,
+             save_weights_only: bool = False,
+             will_use_multi_inputs_per_one_image: bool = False,
+             input_data_preprocess_for_building_multi_data=None
+             ):
+        """
+        指定したデータセットに対しての正答率を算出する
+        :param image_generator: ファイルパスから学習データを生成する生成器
+        :param epochs: エポック数
+        :param validation_data: テストに使用するデータ　実データとラベルのセットのタプルもしくはimage_generatorと同じ形式
+        :param epochs: エポック数
+        :param normalize_type: どのように正規化するか
+        :param result_dir_name: 記録するためのファイル名のベース
+        :param dir_path: 記録するディレクトリ デフォルトではカレントディレクトリ直下にresultディレクトリを作成する
+        :param model_name: モデル名　デフォルトではmodel
+        :param steps_per_epoch: 記録後モデルを削除するかどうか
+        :param validation_steps: 記録後モデルを削除するかどうか
+        :param save_weights_only:
+        :param will_use_multi_inputs_per_one_image:
+        :param input_data_preprocess_for_building_multi_data:
+        :return:
+        """
+        write_dir_path = build_record_path(result_dir_name, dir_path)
+        save_tmp_name = self.build_best_model_file_name(model_name)
+        self.fit_generator(image_generator,
+                           epochs,
+                           validation_data,
+                           steps_per_epoch=steps_per_epoch,
+                           validation_steps=validation_steps,
+                           temp_best_path=os.path.join(write_dir_path, save_tmp_name),
+                           save_weights_only=save_weights_only,
+                           will_use_multi_inputs_per_one_image=will_use_multi_inputs_per_one_image,
+                           data_preprocess=input_data_preprocess_for_building_multi_data)
+        self.record_model(result_dir_name, dir_path, model_name)
+        self.record_conf_json(result_dir_name, dir_path, normalize_type, model_name)
+
+    def fit_generator(self,
+                      image_generator,
+                      epochs: int,
+                      validation_data=None,
+                      steps_per_epoch: Optional[int] = None,
+                      validation_steps: Optional[int] = None,
+                      temp_best_path: str = "",
+                      save_weights_only: bool = False,
+                      will_use_multi_inputs_per_one_image: bool = False,
+                      data_preprocess=None):
+        """
+        モデルの適合度を算出する
+        :param image_generator: ファイルパスから学習データを生成する生成器
+        :param epochs: エポック数
+        :param validation_data: テストに使用するデータ　実データとラベルのセットのタプル
+        :param steps_per_epoch:
+        :param validation_steps:
+        :param temp_best_path:
+        :param save_weights_only:
+        :param will_use_multi_inputs_per_one_image:
+        :param data_preprocess:
+        :return:
+        """
+        print("fit builder")
+        self.__model = self.run_preprocess_model(self.__model)
+        if validation_data is None:
+            self.fit_generator_for_expantion(image_generator,
+                                             epochs=epochs,
+                                             steps_per_epoch=steps_per_epoch,
+                                             temp_best_path=temp_best_path,
+                                             save_weights_only=save_weights_only,
+                                             data_preprocess=data_preprocess)
+        else:
+            self.fit_generator_for_expantion(image_generator,
+                                             steps_per_epoch=steps_per_epoch,
+                                             validation_steps=validation_steps,
+                                             epochs=epochs,
+                                             validation_data=validation_data,
+                                             temp_best_path=temp_best_path,
+                                             save_weights_only=save_weights_only,
+                                             data_preprocess=data_preprocess)
+
+        return self

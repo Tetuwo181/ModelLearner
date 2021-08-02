@@ -38,3 +38,6 @@ class AbstractKerasWrapper(AbstractModel, ABC):
 
     def build_model_file_name(self, model_name):
         return model_name + ".h5" if self.will_save_h5 else model_name
+
+    def build_best_model_file_name(self, model_name):
+        return model_name + "_best.h5" if self.will_save_h5 else model_name + "_best"

@@ -149,6 +149,10 @@ class AbstractModel(ABC):
     def build_write_set(self):
         pass
 
+    @abstractmethod
+    def build_best_model_file_name(self, model_name):
+        pass
+
     def record(self,
                result_dir_name: str,
                dir_path: str = os.path.join(os.getcwd(), "result"),
