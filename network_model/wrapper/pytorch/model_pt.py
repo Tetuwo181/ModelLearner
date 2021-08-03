@@ -13,12 +13,15 @@ import torch
 import torch.nn
 from network_model.wrapper.abstract_model import build_record_path
 from DataIO import data_loader as dl
+import os
+import torch.utils.data as data
+from network_model.wrapper.pytorch.util.checkpoint import PytorchCheckpoint
 
 
 class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
 
     @staticmethod
-    def build(model_base:torch.nn.Module,
+    def build(model_base: torch.nn.Module,
               optimizer: Optimizer,
               loss: _Loss,
               class_set: List[str],
@@ -59,7 +62,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         return build_model
 
     def __init__(self,
-                 model_base,
+                 model_base: torch.nn.Module,
                  optimizer: Optimizer,
                  loss: _Loss,
                  torch_device,
@@ -88,14 +91,16 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                                               preprocess_for_model,
                                               after_learned_process)
 
-    def numpy2tensor(self, param: np.ndarray) -> torch.tensor:
+    def numpy2tensor(self, param: np.ndarray, dtype) -> torch.tensor:
         converted = torch.from_numpy(param)
-        return converted.to(self.__torch_device)
+        return converted.to(self.__torch_device, dtype=dtype)
 
-    def convert_data_for_model(self, x, y):
-        return self.numpy2tensor(x), self.numpy2tensor(y)
+    def convert_data_for_model(self, x: np.ndarray, y):
+        data.dataloader.Dataset()
+        return self.numpy2tensor(x, torch.float), self.numpy2tensor(y, torch.long)
 
     def train_on_batch(self, x, y, sample_weight=None):
+        self.__model.to(self.__torch_device)
         self.__model.train()
         self.__optimizer.zero_grad()
         x, y = self.convert_data_for_model(x, y)
@@ -118,7 +123,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         _, predicted = torch_max(outputs.data, 1)
         n_total = y.size(0)
         n_correct = (predicted == y).sum().item()
-        return running_loss, n_correct/n_total, n_total
+        return running_loss, n_correct/n_total
 
     def add_output_param_to_batch_log_param(self, outs, batch_logs):
         batch_logs["loss"] = outs[0]
@@ -126,10 +131,10 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         return batch_logs
 
     def add_output_val_param_to_epoch_log_param(self, outs_per_batch, batch_sizes, epoch_logs):
-        losses = [out[0] for out in outs_per_batch]
+        losses = np.array([out[0][0] for out in outs_per_batch])
         epoch_logs['val_loss'] = np.average(losses, weights=batch_sizes)
         if len(outs_per_batch[0]) > 1:
-            accuracies = [out[1] for out in outs_per_batch]
+            accuracies = [out[0][1] for out in outs_per_batch]
             # Same labels assumed.
             epoch_logs['val_accuracy'] = np.average(accuracies, weights=batch_sizes)
         return epoch_logs
@@ -230,6 +235,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         """
         print("fit builder")
         self.__model = self.run_preprocess_model(self.__model)
+        self.__model.to(self.__torch_device)
         if validation_data is None:
             self.fit_generator_for_expantion(image_generator,
                                              epochs=epochs,
@@ -248,3 +254,17 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                                              data_preprocess=data_preprocess)
 
         return self
+
+    def save_model(self, file_path):
+        self.__model.to("cpu")
+        torch.save(self.__model, file_path)
+
+    def build_model_checkpoint(self, temp_best_path, save_weights_only):
+        return PytorchCheckpoint(self.__model,
+                                 temp_best_path,
+                                 monitor=self.monitor,
+                                 save_best_only=True,
+                                 save_weights_only=save_weights_only)
+
+
+

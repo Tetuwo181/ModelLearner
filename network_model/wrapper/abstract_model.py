@@ -22,11 +22,9 @@ class AbstractModel(ABC):
                  after_learned_process: Optional[Callable[[None], None]] = None):
         """
 
-         :param input_shape: モデルの入力層の形を表すタプル
          :param class_set: クラスの元となったリスト
          :param callbacks: モデルに渡すコールバック関数
          :param monitor: モデルの途中で記録するパラメータ　デフォルトだと途中で記録しない
-         :param will_save_h5: 途中モデル読み込み時に旧式のh5ファイルで保存するかどうか　デフォルトだと保存する
          :param preprocess_for_model: モデル学習前にモデルに対してする処理
          :param after_learned_process: モデル学習後の後始末
          """
@@ -38,11 +36,14 @@ class AbstractModel(ABC):
         self.__after_learned_process = after_learned_process
         if is_new_keras() is False and self.__monitor == "val_accuracy":
             self.__monitor = "val_acc"
-        print("monitor:", self.__monitor)
 
     @property
     @abstractmethod
     def model(self) -> keras.engine.training.Model:
+        pass
+
+    @abstractmethod
+    def build_model_checkpoint(self, temp_best_path, save_weights_only):
         pass
 
     @property
@@ -57,6 +58,10 @@ class AbstractModel(ABC):
     def preprocess_for_model(self):
         return self.__preprocess_for_model
 
+    @property
+    def monitor(self):
+        return self.__monitor
+
     def after_learned_process(self):
         if self.__after_learned_process is None:
             return
@@ -65,10 +70,7 @@ class AbstractModel(ABC):
     def get_callbacks(self, temp_best_path: str, save_weights_only: bool = False):
         if self.will_record_best_model is None or temp_best_path == "":
             return self.__callbacks
-        best_model_recorder = keras.callbacks.ModelCheckpoint(temp_best_path,
-                                                              monitor=self.__monitor,
-                                                              save_best_only=True,
-                                                              save_weights_only=save_weights_only)
+        best_model_recorder = self.build_model_checkpoint(temp_best_path, save_weights_only)
         return self.__callbacks if self.__callbacks is None else self.__callbacks + [best_model_recorder]
 
     def predict(self, data: np.ndarray) -> Tuple[np.array, np.array]:
@@ -126,7 +128,11 @@ class AbstractModel(ABC):
         print("start record")
         result_path = build_record_path(result_dir_name, dir_path)
         file_name = self.build_model_file_name(model_name)
-        self.model.save(os.path.join(result_path, file_name))
+        self.save_model(os.path.join(result_path, file_name))
+
+    @abstractmethod
+    def save_model(self, file_path):
+        pass
 
     def record_conf_json(self,
                          result_dir_name: str,

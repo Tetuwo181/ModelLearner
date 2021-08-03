@@ -41,3 +41,13 @@ class AbstractKerasWrapper(AbstractModel, ABC):
 
     def build_best_model_file_name(self, model_name):
         return model_name + "_best.h5" if self.will_save_h5 else model_name + "_best"
+
+    def save_model(self, file_path):
+        self.model.save(file_path)
+
+    def build_model_checkpoint(self, temp_best_path, save_weights_only):
+        return keras.callbacks.ModelCheckpoint(temp_best_path,
+                                               monitor=self.monitor,
+                                               save_best_only=True,
+                                               save_weights_only=save_weights_only)
+

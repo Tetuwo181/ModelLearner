@@ -1,18 +1,17 @@
 from keras.callbacks import Callback
-from keras.models import Model
 import numpy as np
+import torch
 
 
-class BaseModelCheckPointer(Callback):
+class PytorchCheckpoint(Callback):
 
     def __init__(self,
-                 model,
+                 model: torch.nn.Module,
                  filepath,
                  monitor='val_loss',
                  save_best_only=False,
                  save_weights_only=False,
                  mode='auto'):
-        super().__init__()
         self.__base_model = model
         self.monitor = monitor
         self.filepath = filepath
@@ -42,15 +41,17 @@ class BaseModelCheckPointer(Callback):
             current = logs.get(self.monitor)
             if self.monitor_op(current, self.best):
                 self.best = current
+                self.__base_model.to("cpu")
                 if self.save_weights_only:
-                    self.__base_model.save_weights(self.filepath, overwrite=True)
+                    torch.save(self.__base_model, self.filepath)
                 else:
-                    self.__base_model.save(self.filepath, overwrite=True)
+                    torch.save(self.__base_model, self.filepath)
         else:
+            self.__base_model.to("cpu")
             if self.save_weights_only:
-                self.__base_model.save_weights(self.filepath, overwrite=True)
+                torch.save(self.__base_model, self.filepath)
             else:
-                self.__base_model.save(self.filepath, overwrite=True)
+                torch.save(self.__base_model, self.filepath)
 
 
 
