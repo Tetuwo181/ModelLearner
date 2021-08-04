@@ -39,7 +39,7 @@ def build_wrapper(img_size: types_of_loco.input_img_size = 28,
                   channels: int = 3,
                   model_name: str = "model1",
                   opt_builder: OptimizerBuilder = default_optimizer_builder,
-                  loss: _Loss = CrossEntropyLoss()) -> ModelBuilder:
+                  loss: _Loss = None) -> ModelBuilder:
     """
     モデル生成をする関数を返す
     交差検証をかける際のラッパーとして使う

@@ -29,7 +29,9 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
               callbacks: Optional[List[keras.callbacks.Callback]] = None,
               monitor: str = "",
               preprocess_for_model=None,
-              after_learned_process: Optional[Callable[[None], None]] = None):
+              after_learned_process: Optional[Callable[[None], None]] = None,
+              x_type=torch.float,
+              y_type=None):
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         return ModelForPytorch(model_base,
                                optimizer,
@@ -39,7 +41,9 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                                callbacks,
                                monitor,
                                preprocess_for_model,
-                               after_learned_process
+                               after_learned_process,
+                               x_type,
+                               y_type
                                )
 
     @staticmethod
@@ -51,7 +55,9 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                         callbacks: Optional[List[keras.callbacks.Callback]] = None,
                         monitor: str = "",
                         preprocess_for_model=None,
-                        after_learned_process: Optional[Callable[[None], None]] = None):
+                        after_learned_process: Optional[Callable[[None], None]] = None,
+                        x_type=torch.float,
+                        y_type=None):
             if loss is not None:
                 return ModelForPytorch.build(model_base,
                                              optimizer,
@@ -60,8 +66,10 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                                              callbacks,
                                              monitor,
                                              preprocess_for_model,
-                                             after_learned_process)
-            use_loss = CrossEntropyLoss() if len(class_set) > 1 else BCELoss()
+                                             after_learned_process,
+                                             x_type,
+                                             y_type)
+            use_loss = CrossEntropyLoss() if len(class_set) > 2 else BCELoss()
             return ModelForPytorch.build(model_base,
                                          optimizer,
                                          use_loss,
@@ -69,7 +77,9 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                                          callbacks,
                                          monitor,
                                          preprocess_for_model,
-                                         after_learned_process)
+                                         after_learned_process,
+                                         x_type,
+                                         y_type)
         return build_model
 
     def __init__(self,
@@ -81,7 +91,9 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                  callbacks: Optional[List[keras.callbacks.Callback]] = None,
                  monitor: str = "",
                  preprocess_for_model=None,
-                 after_learned_process: Optional[Callable[[None], None]] = None):
+                 after_learned_process: Optional[Callable[[None], None]] = None,
+                 x_type=torch.float,
+                 y_type=None):
         """
 
         :param model_base: Pytorchで構築したモデル
@@ -96,11 +108,19 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         self.__loss = loss
         self.__torch_device = torch_device
         self.__model.to(self.__torch_device)
+        self.__x_type = x_type
+        self.__y_type = y_type
+        if self.__y_type is None:
+            self.__y_type = torch.long if len(class_set) > 2 else torch.float
         super(ModelForPytorch, self).__init__(class_set,
                                               callbacks,
                                               monitor,
                                               preprocess_for_model,
                                               after_learned_process)
+
+    @property
+    def is_binary_classifier(self):
+        return self.__y_type==torch.float
 
     def numpy2tensor(self, param: np.ndarray, dtype) -> torch.tensor:
         converted = torch.from_numpy(param)
@@ -108,7 +128,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
 
     def convert_data_for_model(self, x: np.ndarray, y):
         data.dataloader.Dataset()
-        return self.numpy2tensor(x, torch.float), self.numpy2tensor(y, torch.long)
+        return self.numpy2tensor(x, self.__x_type), self.numpy2tensor(y, self.__y_type)
 
     def train_on_batch(self, x, y, sample_weight=None):
         self.__model.to(self.__torch_device)
@@ -121,9 +141,18 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         self.__optimizer.step()
         running_loss = loss.item()
         _, predicted = torch_max(outputs.data, 1)
+        return running_loss, self.calc_collect_rate(predicted, y)
+
+    def calc_collect_rate(self, predicted, y):
         n_total = y.size(0)
-        n_correct = (predicted == y).sum().item()
-        return running_loss, n_correct/n_total
+        if self.is_binary_classifier:
+            correct_num = 0
+            for predicted_param, teacher in zip(predicted, y):
+                if (teacher[0] < 0.5 and predicted_param < 0.5) or (teacher[0] > 0.5 and predicted_param > 0.5):
+                    correct_num = correct_num + 1
+            return correct_num/n_total
+        correct_num = (predicted == y).sum().item()
+        return correct_num/n_total
 
     def evaluate(self, x, y, sample_weight=None):
         self.__model.eval()
@@ -132,9 +161,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         loss = self.__loss(outputs, y)
         running_loss = loss.item()
         _, predicted = torch_max(outputs.data, 1)
-        n_total = y.size(0)
-        n_correct = (predicted == y).sum().item()
-        return running_loss, n_correct/n_total
+        return running_loss, self.calc_collect_rate(predicted, y)
 
     def add_output_param_to_batch_log_param(self, outs, batch_logs):
         batch_logs["loss"] = outs[0]
