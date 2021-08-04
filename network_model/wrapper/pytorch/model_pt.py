@@ -15,6 +15,7 @@ from network_model.wrapper.abstract_model import build_record_path
 from DataIO import data_loader as dl
 import os
 import torch.utils.data as data
+from torch.nn import BCELoss, CrossEntropyLoss
 from network_model.wrapper.pytorch.util.checkpoint import PytorchCheckpoint
 
 
@@ -44,16 +45,26 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
     @staticmethod
     def build_wrapper(model_base: torch.nn.Module,
                       optimizer: Optimizer,
-                      loss: _Loss):
+                      loss: _Loss = None):
 
         def build_model(class_set: List[str],
                         callbacks: Optional[List[keras.callbacks.Callback]] = None,
                         monitor: str = "",
                         preprocess_for_model=None,
                         after_learned_process: Optional[Callable[[None], None]] = None):
+            if loss is not None:
+                return ModelForPytorch.build(model_base,
+                                             optimizer,
+                                             loss,
+                                             class_set,
+                                             callbacks,
+                                             monitor,
+                                             preprocess_for_model,
+                                             after_learned_process)
+            use_loss = CrossEntropyLoss() if len(class_set) > 1 else BCELoss()
             return ModelForPytorch.build(model_base,
                                          optimizer,
-                                         loss,
+                                         use_loss,
                                          class_set,
                                          callbacks,
                                          monitor,
@@ -133,7 +144,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
     def add_output_val_param_to_epoch_log_param(self, outs_per_batch, batch_sizes, epoch_logs):
         losses = np.array([out[0][0] for out in outs_per_batch])
         epoch_logs['val_loss'] = np.average(losses, weights=batch_sizes)
-        if len(outs_per_batch[0]) > 1:
+        if len(outs_per_batch[0][0]) > 1:
             accuracies = [out[0][1] for out in outs_per_batch]
             # Same labels assumed.
             epoch_logs['val_accuracy'] = np.average(accuracies, weights=batch_sizes)
