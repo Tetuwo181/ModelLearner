@@ -168,7 +168,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         outputs = self.__model(x)
         loss = self.__loss(outputs, y)
         running_loss = loss.item()
-        _, predicted = torch_max(outputs.data, 1)
+        predicted = self.get_predicted(outputs)
         return running_loss, self.calc_collect_rate(predicted, y)
 
     def add_output_param_to_batch_log_param(self, outs, batch_logs):
