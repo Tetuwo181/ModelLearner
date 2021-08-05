@@ -35,34 +35,36 @@ def optimizer_builder(optimizer, **kwargs):
 default_optimizer_builder = optimizer_builder(SGD)
 
 
-def build_wrapper(img_size: types_of_loco.input_img_size = 28,
-                  channels: int = 3,
-                  model_name: str = "model1",
-                  opt_builder: OptimizerBuilder = default_optimizer_builder,
-                  loss: _Loss = None) -> ModelBuilder:
-    """
-    モデル生成をする関数を返す
-    交差検証をかける際のラッパーとして使う
-    :param img_size:
-    :param channels:
-    :param model_name:
-    :param opt_builder:
-    :param loss:
-    :return:
-    """
+class PytorchModelBuilder:
 
-    def build_temp(load_path):
+    def __init__(self,
+                 img_size: types_of_loco.input_img_size = 28,
+                 channels: int = 3,
+                 model_name: str = "model1",
+                 opt_builder: OptimizerBuilder = default_optimizer_builder,
+                 loss: _Loss = None):
+        self.__img_size = img_size
+        self.__channels = channels
+        self.__model_name = model_name
+        self.__opt_builder = opt_builder
+        self.__loss = loss
+
+    def build_temp(self, load_path):
         base_model = tempload.builder(load_path)
-        optimizer = opt_builder(base_model)
+        optimizer = self.__opt_builder(base_model)
         return ModelForPytorch.build_wrapper(base_model,
                                              optimizer,
-                                             loss)
+                                             self.__loss)
 
-    def build_factory(class_num):
-        base_model = builder_pt(class_num, img_size, model_name)
-        optimizer = opt_builder(base_model)
+    def build_factory(self, class_num):
+        base_model = builder_pt(class_num, self.__img_size, self.__model_name)
+        optimizer = self.__opt_builder(base_model)
         return ModelForPytorch.build_wrapper(base_model,
                                              optimizer,
-                                             loss)
-    return build_temp if model_name == "tempload" else build_factory
+                                             self.__loss)
+
+    def __call__(self, model_builder_input):
+        if self.__model_name == "tempload":
+            return self.build_temp(model_builder_input)
+        return self.build_factory(model_builder_input)
 

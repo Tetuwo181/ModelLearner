@@ -12,6 +12,7 @@ from DataIO.data_loader import NormalizeType
 from DataIO.data_choicer import BaggingDataPicker, ChoiceDataNum
 from abc import ABC
 from network_model.model_for_distillation import ModelForDistillation
+from network_model.builder.pytorch_builder import PytorchModelBuilder
 
 
 LearnModel = Union[md.ModelForManyData, ModelForDistillation]
@@ -100,7 +101,7 @@ def image_dir_train_test_split(original_dir, base_dir, train_size=0.8, has_built
 class AbsModelLearner(ABC):
 
     def __init__(self,
-                 model_builder: ModelBuilder,
+                 model_builder: Union[ModelBuilder, PytorchModelBuilder],
                  train_image_generator: ImageDataGenerator,
                  test_image_generator: ImageDataGenerator,
                  class_list: List[str],
@@ -211,6 +212,10 @@ class AbsModelLearner(ABC):
         if self.class_num > 2:
             return "categorical"
         return "binary"
+
+    @property
+    def is_torch(self):
+        return isinstance(self.__model_builder, PytorchModelBuilder)
 
     @staticmethod
     def get_train_and_test_num(base_dir: str):

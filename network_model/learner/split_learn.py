@@ -1,6 +1,6 @@
 import os
 
-from typing import Tuple, List, Callable
+from typing import Tuple, List, Callable, Union
 from typing import Optional
 import keras.callbacks
 from keras.preprocessing.image import ImageDataGenerator
@@ -8,12 +8,13 @@ from network_model.wrapper.keras import many_data as md
 from network_model.model_builder import ModelBuilder
 from DataIO.data_loader import NormalizeType
 from network_model.learner.abs_split_learner import AbsModelLearner
+from network_model.builder.pytorch_builder import PytorchModelBuilder
 
 
 class ModelLearner(AbsModelLearner):
 
     def __init__(self,
-                 model_builder: ModelBuilder,
+                 model_builder: Union[ModelBuilder, PytorchModelBuilder],
                  train_image_generator: ImageDataGenerator,
                  test_image_generator: ImageDataGenerator,
                  class_list: List[str],
@@ -62,7 +63,7 @@ class ModelLearner(AbsModelLearner):
                                 model_dir_path: str,
                                 result_name: str,
                                 monitor: str = ""):
-        if callable(build_result):
+        if self.is_torch:
             return build_result(self.class_list,
                                 self.callbacks,
                                 monitor,

@@ -1,6 +1,6 @@
 from torchvision.models.mobilenetv2 import mobilenet_v2
 import torch
-from torch.nn import Sequential, Dropout, Linear, Softmax, Sigmoid
+from torch.nn import Sequential, Dropout, Linear, ReLU, Softmax, Sigmoid
 from util_types import types_of_loco
 
 
@@ -13,12 +13,13 @@ def builder(
     if class_num > 2:
         base_model.classifier = Sequential(
             Dropout(0.2),
-            Linear(base_model.last_channel, class_num),
-            Softmax()
+            ReLU(base_model.last_channel),
+            Linear(base_model.last_channel, class_num)
         )
     else:
         base_model.classifier = Sequential(
             Dropout(0.2),
+            ReLU(base_model.last_channel),
             Linear(base_model.last_channel, 1),
             Sigmoid()
         )

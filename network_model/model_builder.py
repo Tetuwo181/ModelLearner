@@ -42,7 +42,7 @@ def init_input_image(size: types_of_loco.input_img_size):
 def build_wrapper(img_size: types_of_loco.input_img_size = 28,
                   channels: int = 3,
                   model_name: str = "model1",
-                  optimizer: Optimizer = SGD()) -> ModelBuilder:
+                  optimizer: Optimizer = SGD()) -> Union[ModelBuilder, pytorch_builder.PytorchModelBuilder]:
     """
     モデル生成をする関数を返す
     交差検証をかける際のラッパーとして使う
@@ -53,10 +53,10 @@ def build_wrapper(img_size: types_of_loco.input_img_size = 28,
     :return:
     """
     if callable(optimizer):
-        return pytorch_builder.build_wrapper(img_size=img_size,
-                                             channels=channels,
-                                             model_name=model_name,
-                                             opt_builder=optimizer)
+        return pytorch_builder.PytorchModelBuilder(img_size=img_size,
+                                                   channels=channels,
+                                                   model_name=model_name,
+                                                   opt_builder=optimizer)
     return keras_builder.build_wrapper(img_size, channels, model_name, optimizer)
 
 

@@ -140,15 +140,23 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         loss.backward()
         self.__optimizer.step()
         running_loss = loss.item()
-        _, predicted = torch_max(outputs.data, 1)
+        predicted = self.get_predicted(outputs)
         return running_loss, self.calc_collect_rate(predicted, y)
+
+    def get_predicted(self, outputs):
+        if self.is_binary_classifier:
+            return [0 if param < 0.5 else 1 for param in outputs.data]
+        _, predicted = torch_max(outputs.data, 1)
+        return predicted
 
     def calc_collect_rate(self, predicted, y):
         n_total = y.size(0)
         if self.is_binary_classifier:
             correct_num = 0
             for predicted_param, teacher in zip(predicted, y):
-                if (teacher[0] < 0.5 and predicted_param < 0.5) or (teacher[0] > 0.5 and predicted_param > 0.5):
+                if teacher[0] < 0.5 and predicted_param < 0.5:
+                    correct_num = correct_num + 1
+                if teacher[0] > 0.5 and predicted_param > 0.5:
                     correct_num = correct_num + 1
             return correct_num/n_total
         correct_num = (predicted == y).sum().item()
