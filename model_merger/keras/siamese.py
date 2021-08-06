@@ -1,7 +1,7 @@
-from model_merger.proc.calculator import LCaliculator, calc_l1_norm
+from model_merger.keras.proc.calculator import LCaliculator, calc_l1_norm
 from keras.models import Model
 from keras.layers import Input
-from model_merger.proc.checkpoint import BaseModelCheckPointer
+from model_merger.keras.proc.checkpoint import BaseModelCheckPointer
 
 
 class SiameseBuilder(object):

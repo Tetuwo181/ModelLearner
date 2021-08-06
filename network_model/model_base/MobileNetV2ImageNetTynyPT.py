@@ -9,13 +9,12 @@ def builder(
         img_size: types_of_loco.input_img_size = 28,
         channels: int = 3,
         ) -> torch.nn.Module:
-    base_model = mobilenet_v2(pretrained=True)
+    base_model = mobilenet_v2(pretrained=True, width_mult=0.35)
     if class_num > 2:
         base_model.classifier = Sequential(
             Dropout(0.2),
             ReLU(base_model.last_channel),
-            Linear(base_model.last_channel, class_num),
-            Softmax()
+            Linear(base_model.last_channel, class_num)
         )
     else:
         base_model.classifier = Sequential(
@@ -25,4 +24,3 @@ def builder(
             Sigmoid()
         )
     return base_model
-

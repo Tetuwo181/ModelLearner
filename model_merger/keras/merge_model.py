@@ -1,11 +1,11 @@
 import keras.engine.training
 from keras.layers import Input, Dense
-from keras.layers import Add, Subtract, Multiply, Average, Maximum, Minimum, Concatenate, Dot
+from keras.layers import Concatenate
 from keras.optimizers import Optimizer, SGD
 from keras.models import Model
 from typing import List, Union, Optional, Tuple
 from network_model.model_base.tempload import builder_for_merge
-from model_merger.type import Merge, Loss, TrainableModelIndex
+from model_merger.keras.type import Merge, Loss, TrainableModelIndex
 from util.keras_version import is_new_keras
 
 
