@@ -9,11 +9,11 @@ from network_model.model_base import tempload
 from network_model.distillation.distillation_model_builder import DistllationModelIncubator
 from keras.optimizers import Optimizer, SGD
 from network_model.build_model import builder, builder_with_merge
-from model_merger import ModelMerger
+from model_merger.keras.merge_model import ModelMerger
 from keras.layers import Concatenate
 from keras.callbacks import Callback
 from model_merger.keras.siamese import SiameseBuilder
-from model_merger.keras.proc import calc_l1_norm
+from model_merger.keras.proc.calculator import calc_l1_norm
 
 
 ModelBuilderResult = Union[keras.engine.training.Model, List[Callback]]

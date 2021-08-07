@@ -210,7 +210,7 @@ class AbsModelLearner(ABC):
         if self.__class_mode is not None:
             return self.__class_mode
         if self.class_num > 2:
-            return "categorical"
+            return "sparse" if isinstance(self.model_builder, PytorchModelBuilder) else "categorical"
         return "binary"
 
     @property

@@ -5,10 +5,10 @@ from typing import Tuple
 from typing import List
 from typing import Union
 from util_types import types_of_loco
-from network_model.model_base import tempload
 from network_model.distillation.distillation_model_builder import DistllationModelIncubator
 from network_model.build_model import builder_pt, builder_with_merge
 from keras.callbacks import Callback
+import torch
 from torch.optim.optimizer import Optimizer
 from torch.optim import SGD
 from torch.nn.modules.loss import _Loss
@@ -50,7 +50,7 @@ class PytorchModelBuilder:
         self.__loss = loss
 
     def build_temp(self, load_path):
-        base_model = tempload.builder(load_path)
+        base_model = torch.load(load_path)
         optimizer = self.__opt_builder(base_model)
         return ModelForPytorch.build_wrapper(base_model,
                                              optimizer,
