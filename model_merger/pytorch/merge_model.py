@@ -23,7 +23,7 @@ class MergedModel(torch.nn.Module):
         self.__class_num = class_num if class_num > 2 else 1
         self.__merged_output = Linear(merged_output_layer_num, self.__class_num)
         self.__relu = ReLU()
-        self.__output_layer = Softmax() if class_num > 2 else Sigmoid()
+        self.__output_layer = Softmax(dim=1) if class_num > 2 else Sigmoid()
 
     def forward(self, x: Tensor) -> Tensor:
 

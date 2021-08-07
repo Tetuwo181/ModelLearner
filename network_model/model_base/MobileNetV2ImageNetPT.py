@@ -15,7 +15,7 @@ def builder(
             Dropout(0.2),
             ReLU(base_model.last_channel),
             Linear(base_model.last_channel, class_num),
-            Softmax()
+            Softmax(dim=1)
         )
     else:
         base_model.classifier = Sequential(
