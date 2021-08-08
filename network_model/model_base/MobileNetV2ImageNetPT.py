@@ -2,7 +2,7 @@ from torchvision.models.mobilenetv2 import mobilenet_v2
 import torch
 from torch.nn import Sequential, Dropout, Linear, ReLU, Softmax, Sigmoid
 from util_types import types_of_loco
-
+from torch.serialization import load
 
 def builder(
         class_num: int,

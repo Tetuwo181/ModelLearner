@@ -30,6 +30,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
               monitor: str = "",
               preprocess_for_model=None,
               after_learned_process: Optional[Callable[[None], None]] = None,
+              sample_data=torch.rand(1, 3, 224, 224),
               x_type=torch.float,
               y_type=None):
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -42,6 +43,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                                monitor,
                                preprocess_for_model,
                                after_learned_process,
+                               sample_data,
                                x_type,
                                y_type
                                )
@@ -49,7 +51,8 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
     @staticmethod
     def build_wrapper(model_base: torch.nn.Module,
                       optimizer: Optimizer,
-                      loss: _Loss = None):
+                      loss: _Loss = None,
+                      sample_data=torch.rand(1, 3, 224, 224)):
 
         def build_model(class_set: List[str],
                         callbacks: Optional[List[keras.callbacks.Callback]] = None,
@@ -67,6 +70,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                                              monitor,
                                              preprocess_for_model,
                                              after_learned_process,
+                                             sample_data,
                                              x_type,
                                              y_type)
             use_loss = CrossEntropyLoss() if len(class_set) > 2 else BCELoss()
@@ -78,6 +82,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                                          monitor,
                                          preprocess_for_model,
                                          after_learned_process,
+                                         sample_data,
                                          x_type,
                                          y_type)
         return build_model
@@ -92,6 +97,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                  monitor: str = "",
                  preprocess_for_model=None,
                  after_learned_process: Optional[Callable[[None], None]] = None,
+                 sample_data=torch.rand(1, 3, 224, 224),
                  x_type=torch.float,
                  y_type=None):
         """
@@ -110,6 +116,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         self.__model.to(self.__torch_device)
         self.__x_type = x_type
         self.__y_type = y_type
+        self.__sample_data = sample_data
         if self.__y_type is None:
             self.__y_type = torch.long if len(class_set) > 2 else torch.float
         super(ModelForPytorch, self).__init__(class_set,
@@ -141,6 +148,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         self.__optimizer.step()
         running_loss = loss.item()
         predicted = self.get_predicted(outputs)
+        self.__sample_data = x[:1].to("cpu")
         return running_loss, self.calc_collect_rate(predicted, y)
 
     def get_predicted(self, outputs):
@@ -306,8 +314,10 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         torch.save(self.__model, file_path)
 
     def build_model_checkpoint(self, temp_best_path, save_weights_only):
+
         return PytorchCheckpoint(self.__model,
                                  temp_best_path,
+                                 self.__sample_data,
                                  monitor=self.monitor,
                                  save_best_only=True,
                                  save_weights_only=save_weights_only)

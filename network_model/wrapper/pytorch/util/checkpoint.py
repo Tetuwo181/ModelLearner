@@ -8,6 +8,7 @@ class PytorchCheckpoint(Callback):
     def __init__(self,
                  model: torch.nn.Module,
                  filepath,
+                 sample_data,
                  monitor='val_loss',
                  save_best_only=False,
                  save_weights_only=False,
@@ -17,6 +18,7 @@ class PytorchCheckpoint(Callback):
         self.filepath = filepath
         self.save_best_only = save_best_only
         self.save_weights_only = save_weights_only
+        self.__sample_data = sample_data
 
         if mode not in ['auto', 'min', 'max']:
             mode = 'auto'
@@ -43,15 +45,18 @@ class PytorchCheckpoint(Callback):
                 self.best = current
                 self.__base_model.to("cpu")
                 if self.save_weights_only:
-                    torch.save(self.__base_model, self.filepath)
+                    model_trace = torch.jit.trace(self.__base_model, self.__sample_data)
+                    model_trace.save(self.filepath)
                 else:
-                    torch.save(self.__base_model, self.filepath)
+                    model_trace = torch.jit.trace(self.__base_model, self.__sample_data)
+                    model_trace.save(self.filepath)
         else:
             self.__base_model.to("cpu")
             if self.save_weights_only:
-                torch.save(self.__base_model, self.filepath)
+                model_trace = torch.jit.trace(self.__base_model, self.__sample_data)
+                model_trace.save(self.filepath)
             else:
-                torch.save(self.__base_model, self.filepath)
-
+                model_trace = torch.jit.trace(self.__base_model, self.__sample_data)
+                model_trace.save(self.filepath)
 
 

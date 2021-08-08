@@ -50,7 +50,7 @@ class PytorchModelBuilder:
         self.__loss = loss
 
     def build_temp(self, load_path):
-        base_model = torch.load(load_path)
+        base_model = torch.jit.load(load_path)
         optimizer = self.__opt_builder(base_model)
         return ModelForPytorch.build_wrapper(base_model,
                                              optimizer,
