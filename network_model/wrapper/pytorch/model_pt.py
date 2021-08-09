@@ -16,7 +16,8 @@ from DataIO import data_loader as dl
 import os
 import torch.utils.data as data
 from torch.nn import BCELoss, CrossEntropyLoss
-from network_model.wrapper.pytorch.util.checkpoint import PytorchCheckpoint
+from network_model.wrapper.pytorch.util.checkpoint import PytorchCheckpoint, PytorchSiameseCheckpoint
+from model_merger.pytorch.siamese import SiameseNetworkPT
 
 
 class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
@@ -314,7 +315,13 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         torch.save(self.__model, file_path)
 
     def build_model_checkpoint(self, temp_best_path, save_weights_only):
-
+        if isinstance(self.__model, SiameseNetworkPT):
+            return PytorchSiameseCheckpoint(self.__model,
+                                            temp_best_path,
+                                            self.__sample_data,
+                                            monitor=self.monitor,
+                                            save_best_only=True,
+                                            save_weights_only=save_weights_only)
         return PytorchCheckpoint(self.__model,
                                  temp_best_path,
                                  self.__sample_data,
