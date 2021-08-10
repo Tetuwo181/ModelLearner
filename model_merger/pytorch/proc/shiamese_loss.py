@@ -15,8 +15,13 @@ class SiameseLoss(torch.nn.Module):
         self.__distance_calculator = distance_calculator
         self.__loss_calculator = loss_calculator
 
-    def forward(self, x0, x1, y):
+    def forward(self, params, y):
 
+        x0 = params[0]
+        x1 = params[1]
         distance = self.__distance_calculator.forward(x0, x1)
         loss = self.__loss_calculator.forward(distance, y)
         return loss
+
+    def calc_distance(self, x0, x1):
+        return self.__distance_calculator(x0, x1)

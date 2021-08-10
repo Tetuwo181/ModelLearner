@@ -11,7 +11,7 @@ class SiameseNetworkPT(torch.nn.Module):
 
         self.__base_model = base_model
 
-    def forward(self, inputs: List[Tensor], ) -> Tuple[Tensor, Tensor]:
+    def forward(self, inputs: List[Tensor]) -> Tuple[Tensor, Tensor]:
 
         output1 = self.__base_model(inputs[0])
         output2 = self.__base_model(inputs[1])

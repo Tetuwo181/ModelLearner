@@ -68,6 +68,10 @@ class PytorchCheckpoint(Callback):
     def filepath(self):
         return self.__filepath
 
+    @property
+    def sample_data(self):
+        return self.__sample_data
+
 
 class PytorchSiameseCheckpoint(PytorchCheckpoint):
 
@@ -93,7 +97,7 @@ class PytorchSiameseCheckpoint(PytorchCheckpoint):
         return base_params[0] + "_original." + base_params[1]
 
     def on_epoch_end(self, epoch, logs=None):
-        super(PytorchSiameseCheckpoint, self).on_epoch_end(epoch, logs)
+        # super(PytorchSiameseCheckpoint, self).on_epoch_end(epoch, logs)
         record_model = self.base_model.original_model
         if self.save_best_only:
             current = logs.get(self.monitor)
@@ -101,17 +105,17 @@ class PytorchSiameseCheckpoint(PytorchCheckpoint):
                 self.best = current
                 record_model.to("cpu")
                 if self.save_weights_only:
-                    model_trace = torch.jit.trace(record_model, self.__sample_data[0])
+                    model_trace = torch.jit.trace(record_model, self.sample_data[0])
                     model_trace.save(self.original_model_path)
                 else:
-                    model_trace = torch.jit.trace(record_model, self.__sample_data[0])
+                    model_trace = torch.jit.trace(record_model, self.sample_data[0])
                     model_trace.save(self.original_model_path)
         else:
             self.__base_model.to("cpu")
             if self.save_weights_only:
-                model_trace = torch.jit.trace(self.__base_model, self.__sample_data[0])
+                model_trace = torch.jit.trace(self.__base_model, self.sample_data[0])
                 model_trace.save(self.original_model_path)
             else:
-                model_trace = torch.jit.trace(self.__base_model, self.__sample_data[0])
+                model_trace = torch.jit.trace(self.__base_model, self.sample_data[0])
                 model_trace.save(self.original_model_path)
 

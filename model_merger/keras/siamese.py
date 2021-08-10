@@ -64,7 +64,6 @@ class SiameseBuilder(object):
                                          save_best_only,
                                          save_weights_only,
                                          self.__mode)
-
         return train_model, build_checkpoint
 
 

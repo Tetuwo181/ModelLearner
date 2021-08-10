@@ -10,4 +10,8 @@ class AbstractDistanceCaluclator(torch.nn.Module, ABC):
 
     @abstractmethod
     def forward(self, x0: Tensor, x1: Tensor):
+        return self.calc_distance(x0, x1)
+
+    @abstractmethod
+    def calc_distance(self, x0: Tensor, x1: Tensor):
         return x0 - x1

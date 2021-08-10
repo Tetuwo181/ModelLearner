@@ -13,6 +13,7 @@ from keras.layers import Concatenate
 from keras.callbacks import Callback
 from model_merger.keras.siamese import SiameseBuilder
 from model_merger.keras.proc.calculator import calc_l1_norm
+from model_merger.pytorch.proc.distance.calculator import L1Norm
 import torch.nn
 from network_model.builder import keras_builder, pytorch_builder
 
@@ -78,21 +79,32 @@ def build_siamese(q: float,
                   img_size: types_of_loco.input_img_size = 28,
                   channels: int = 3,
                   model_name: str = "model1",
-                  optimizer: Optimizer = SGD(),
+                  optimizer=SGD(),
                   loss_func=None,
-                  calc_distance=calc_l1_norm,
+                  calc_distance=None,
                   save_best_only=True,
                   save_weights_only=False,
                   save_base_filepath: str = None):
+    use_distance = calc_distance
+    if use_distance is None:
+        use_distance = L1Norm() if callable(optimizer) else calc_l1_norm
+
     def build(class_num: int):
         base_model = builder(class_num, img_size, channels, optimizer, model_name)
         shame_builder = SiameseBuilder(base_model)
         return shame_builder.build_shame_trainer_for_classifivation(q,
                                                                     optimizer,
                                                                     loss_func,
-                                                                    calc_distance,
+                                                                    use_distance,
                                                                     save_base_filepath,
                                                                     save_best_only,
                                                                     save_weights_only
                                                                     )
-    return build
+
+    return pytorch_builder.PytorchSiameseModelBuilder(q,
+                                                      img_size,
+                                                      channels,
+                                                      model_name,
+                                                      optimizer,
+                                                      loss_func,
+                                                      use_distance) if callable(optimizer) else build

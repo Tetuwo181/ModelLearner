@@ -23,6 +23,11 @@ from model_merger.pytorch.siamese import SiameseNetworkPT
 class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
 
     @staticmethod
+    def build_sampledata(is_siamese: bool):
+        base_data = torch.rand(1, 3, 224, 224)
+        return [base_data, base_data] if is_siamese else base_data
+
+    @staticmethod
     def build(model_base: torch.nn.Module,
               optimizer: Optimizer,
               loss: _Loss,
@@ -31,9 +36,12 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
               monitor: str = "",
               preprocess_for_model=None,
               after_learned_process: Optional[Callable[[None], None]] = None,
-              sample_data=torch.rand(1, 3, 224, 224),
+              sample_data=None,
               x_type=torch.float,
               y_type=None):
+        use_sample_data = sample_data
+        if use_sample_data is None:
+            use_sample_data = ModelForPytorch.build_sampledata(isinstance(model_base, SiameseNetworkPT))
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         return ModelForPytorch(model_base,
                                optimizer,
@@ -44,7 +52,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                                monitor,
                                preprocess_for_model,
                                after_learned_process,
-                               sample_data,
+                               use_sample_data,
                                x_type,
                                y_type
                                )
@@ -53,7 +61,10 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
     def build_wrapper(model_base: torch.nn.Module,
                       optimizer: Optimizer,
                       loss: _Loss = None,
-                      sample_data=torch.rand(1, 3, 224, 224)):
+                      sample_data=None):
+        use_sample_data = sample_data
+        if use_sample_data is None:
+            use_sample_data = ModelForPytorch.build_sampledata(isinstance(model_base, SiameseNetworkPT))
 
         def build_model(class_set: List[str],
                         callbacks: Optional[List[keras.callbacks.Callback]] = None,
@@ -71,7 +82,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                                              monitor,
                                              preprocess_for_model,
                                              after_learned_process,
-                                             sample_data,
+                                             use_sample_data,
                                              x_type,
                                              y_type)
             use_loss = CrossEntropyLoss() if len(class_set) > 2 else BCELoss()
@@ -83,7 +94,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                                          monitor,
                                          preprocess_for_model,
                                          after_learned_process,
-                                         sample_data,
+                                         use_sample_data,
                                          x_type,
                                          y_type)
         return build_model
@@ -130,6 +141,10 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
     def is_binary_classifier(self):
         return self.__y_type==torch.float
 
+    @property
+    def is_siamese(self):
+        return isinstance(self.__model, SiameseNetworkPT)
+
     def numpy2tensor(self, param: np.ndarray, dtype) -> torch.tensor:
         converted = torch.from_numpy(param)
         return converted.to(self.__torch_device, dtype=dtype)
@@ -152,7 +167,14 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         self.__sample_data = x[:1].to("cpu")
         return running_loss, self.calc_collect_rate(predicted, y)
 
+    def get_siamese_predicted(self, x0, x1):
+        distance = self.__loss.calc_distance(x0, x1)
+        return 0 if distance < 0.5 else 1
+
     def get_predicted(self, outputs):
+        if self.is_siamese:
+            x0, x1 = outputs
+            return [self.get_siamese_predicted(param0, param1) for param0, param1 in zip(x0, x1)]
         if self.is_binary_classifier:
             return [0 if param < 0.5 else 1 for param in outputs.data]
         _, predicted = torch_max(outputs.data, 1)
@@ -160,6 +182,14 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
 
     def calc_collect_rate(self, predicted, y):
         n_total = y.size(0)
+        if self.is_siamese:
+            correct_num = 0
+            for predicted_param, teacher in zip(predicted, y):
+                if teacher < 0.5 and predicted_param < 0.5:
+                    correct_num = correct_num + 1
+                if teacher > 0.5 and predicted_param > 0.5:
+                    correct_num = correct_num + 1
+            return correct_num/n_total
         if self.is_binary_classifier:
             correct_num = 0
             for predicted_param, teacher in zip(predicted, y):
@@ -315,7 +345,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         torch.save(self.__model, file_path)
 
     def build_model_checkpoint(self, temp_best_path, save_weights_only):
-        if isinstance(self.__model, SiameseNetworkPT):
+        if self.is_siamese:
             return PytorchSiameseCheckpoint(self.__model,
                                             temp_best_path,
                                             self.__sample_data,
