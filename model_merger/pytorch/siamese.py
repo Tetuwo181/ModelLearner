@@ -20,3 +20,4 @@ class SiameseNetworkPT(torch.nn.Module):
     @property
     def original_model(self):
         return self.__base_model
+

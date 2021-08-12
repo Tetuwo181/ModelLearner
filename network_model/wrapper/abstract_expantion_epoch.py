@@ -64,9 +64,7 @@ class AbsExpantionEpoch(ABC):
     def callbacks_metric(self):
         pass
 
-    def build_one_batch_dataset(self,
-                                output_generator,
-                                data_preprocess=None):
+    def build_raw_one_batch_dataset(self, output_generator):
         generator_output = next(output_generator)
 
         if not hasattr(generator_output, '__len__'):
@@ -85,6 +83,13 @@ class AbsExpantionEpoch(ABC):
                              'a tuple `(x, y, sample_weight)` '
                              'or `(x, y)`. Found: ' +
                              str(generator_output))
+        return x, y, sample_weight
+
+    def build_one_batch_dataset(self,
+                                output_generator,
+                                data_preprocess=None):
+
+        x, y, sample_weight = self.build_raw_one_batch_dataset(output_generator)
         if data_preprocess is not None:
             x, y = data_preprocess(x, y)
         return x, y, sample_weight
@@ -219,6 +224,7 @@ class AbsExpantionEpoch(ABC):
                                      'Batches should contain '
                                      'at least one item.')
             except Exception as e:
+                print(e)
                 steps_done += 1
                 continue
             steps_done += 1

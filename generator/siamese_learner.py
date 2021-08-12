@@ -13,6 +13,8 @@ def build_batch_for_siameselearner(data_batch, teachers):
 
 
 def build_shame_label(base_label, other_label):
+    if type(base_label) is np.float32:
+        return 1 if int(base_label) == int(other_label) else 0
     for base_index, other_index in zip(base_label, other_label):
         if base_index != other_index:
             return 0

@@ -14,10 +14,11 @@ import torch.nn
 from network_model.wrapper.abstract_model import build_record_path
 from DataIO import data_loader as dl
 import os
-import torch.utils.data as data
 from torch.nn import BCELoss, CrossEntropyLoss
 from network_model.wrapper.pytorch.util.checkpoint import PytorchCheckpoint, PytorchSiameseCheckpoint
 from model_merger.pytorch.siamese import SiameseNetworkPT
+from keras.utils.generic_utils import to_list
+from generator.transpose import transpose
 
 
 class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
@@ -145,12 +146,17 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
     def is_siamese(self):
         return isinstance(self.__model, SiameseNetworkPT)
 
+    @property
+    def stateful_metric_names(self):
+        if self.is_siamese:
+            return ["loss", "accuracy", "val_loss", "val_accuracy", "val_original_accuracy"]
+        return ["loss", "accuracy", "val_loss", "val_accuracy"]
+
     def numpy2tensor(self, param: np.ndarray, dtype) -> torch.tensor:
         converted = torch.from_numpy(param)
         return converted.to(self.__torch_device, dtype=dtype)
 
     def convert_data_for_model(self, x: np.ndarray, y):
-        data.dataloader.Dataset()
         return self.numpy2tensor(x, self.__x_type), self.numpy2tensor(y, self.__y_type)
 
     def train_on_batch(self, x, y, sample_weight=None):
@@ -222,6 +228,9 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
             accuracies = [out[0][1] for out in outs_per_batch]
             # Same labels assumed.
             epoch_logs['val_accuracy'] = np.average(accuracies, weights=batch_sizes)
+        if self.is_siamese:
+            original_accuracies = [out[0][2] for out in outs_per_batch]
+            epoch_logs['val_original_accuracy'] = np.average(original_accuracies, weights=batch_sizes)
         return epoch_logs
 
     def set_model_stop_training(self, will_stop_trainable):
@@ -235,6 +244,8 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
 
     @property
     def callbacks_metric(self):
+        if self.is_siamese:
+            return ["loss", "accuracy", "val_loss", "val_accuracy", "val_original_accuracy"]
         return ["loss", "accuracy", "val_loss", "val_accuracy"]
 
     @property
@@ -359,5 +370,76 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                                  save_best_only=True,
                                  save_weights_only=save_weights_only)
 
+    def evaluate_siamese(self,
+                         siamese_x,
+                         siamese_y,
+                         original_x,
+                         original_y,
+                         sample_weight=None):
+        running_loss, siamese_collect_rate = self.evaluate(siamese_x, siamese_y, sample_weight)
+        original_model = self.model.original_model
+        original_model.eval()
+        original_model.to(self.__torch_device)
+        original_x = self.numpy2tensor(transpose(original_x), self.__x_type)
+        original_y = self.numpy2tensor(original_y, torch.long)
+        original_output = original_model(original_x)
+        _, predicted = torch_max(original_output.data, 1)
+        correct_num = (predicted == original_y).sum().item()
+        n_total = original_y.size(0)
+        return running_loss, siamese_collect_rate, correct_num/n_total
 
+    def build_one_batch_dataset(self,
+                                output_generator,
+                                data_preprocess=None,
+                                is_train: bool = True):
+        if self.is_siamese is False or is_train:
+            return super(ModelForPytorch, self).build_one_batch_dataset(output_generator,
+                                                                        data_preprocess)
+        x, y, sample_weight = self.build_raw_one_batch_dataset(output_generator)
+        siamese_x, siamese_y = data_preprocess(x, y)
+        return siamese_x, siamese_y, sample_weight, x, y
+
+    def one_batch_val(self,
+                      val_enqueuer_gen,
+                      validation_steps,
+                      epoch_logs,
+                      data_preprocess=None):
+        if self.is_siamese is False:
+            return super(ModelForPytorch, self).one_batch_val(val_enqueuer_gen,
+                                                              validation_steps,
+                                                              epoch_logs,
+                                                              data_preprocess)
+        steps = len(val_enqueuer_gen)
+        steps_done = 0
+        outs_per_batch = []
+        batch_sizes = []
+        while steps_done < steps:
+            try:
+                siamese_x, siamese_y, sample_weight, x, y = self.build_one_batch_dataset(val_enqueuer_gen,
+                                                                                         data_preprocess,
+                                                                                         False)
+                val_outs = self.evaluate_siamese(siamese_x, siamese_y, x, y, sample_weight=sample_weight)
+                val_outs = to_list(val_outs)
+                outs_per_batch.append(val_outs)
+                if x is None or len(x) == 0:
+                    # Handle data tensors support when no input given
+                    # step-size = 1 for data tensors
+                    batch_size = 1
+                elif isinstance(x, list):
+                    batch_size = x[0].shape[0]
+                elif isinstance(x, dict):
+                    batch_size = list(x.values())[0].shape[0]
+                else:
+                    batch_size = x.shape[0]
+                if batch_size == 0:
+                    raise ValueError('Received an empty batch. '
+                                     'Batches should contain '
+                                     'at least one item.')
+            except Exception as e:
+                print(e)
+                steps_done += 1
+                continue
+            steps_done += 1
+            batch_sizes.append(batch_size)
+        return self.add_output_val_param_to_epoch_log_param(outs_per_batch, batch_sizes, epoch_logs)
 
