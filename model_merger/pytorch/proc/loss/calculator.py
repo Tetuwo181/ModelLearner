@@ -19,10 +19,10 @@ class AAEUMLoss(AbstractLossCalculator):
     def l_plus(self, x):
         return (2/self.q)*torch.square(x)
 
-    def l_minus(self, x):
-        return 2*torch.pow(self.q*exponential, -((2.77/self.q)*x))
+    def l_minus(self, x: torch.Tensor):
+        return 2*self.q*torch.exp(-((2.77/self.q)*x))
 
     def forward(self, distance, y):
         losses = y*self.l_plus(distance) + (1-y)*self.l_minus(distance)
-        loss = torch.sum(losses) / (2*distance.size()[0])
+        loss = torch.sum(losses) / (distance.size()[0])
         return loss
