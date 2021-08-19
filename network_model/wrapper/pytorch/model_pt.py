@@ -19,6 +19,8 @@ from network_model.wrapper.pytorch.util.checkpoint import PytorchCheckpoint, Pyt
 from model_merger.pytorch.siamese import SiameseNetworkPT
 from keras.utils.generic_utils import to_list
 from generator.transpose import transpose
+from generator.siamese_learner import SiameseLearnerDataBuilder
+from torchvision.models.inception import Inception3
 
 
 class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
@@ -147,6 +149,10 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         return isinstance(self.__model, SiameseNetworkPT)
 
     @property
+    def is_inceptionV3(self):
+        return isinstance(self.__model, Inception3)
+
+    @property
     def stateful_metric_names(self):
         if self.is_siamese:
             return ["loss", "accuracy", "val_loss", "val_accuracy", "val_original_accuracy"]
@@ -165,6 +171,15 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         self.__optimizer.zero_grad()
         x, y = self.convert_data_for_model(x, y)
         outputs = self.__model(x)
+        if self.is_inceptionV3:
+            loss = self.__loss(outputs.logits, y)
+            self.__optimizer.step()
+            running_loss = loss.item()
+            predicted = self.get_predicted(outputs.logits)
+            if outputs.aux_logits is not None:
+                aux_loss = self.__loss(outputs.aux_logits, y)
+                self.__optimizer.step()
+            return running_loss, self.calc_collect_rate(predicted, y)
         loss = self.__loss(outputs, y)
         loss.backward()
         self.__optimizer.step()
@@ -375,6 +390,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                          siamese_y,
                          original_x,
                          original_y,
+                         margin: int,
                          sample_weight=None):
         running_loss, siamese_collect_rate = self.evaluate(siamese_x, siamese_y, sample_weight)
         original_model = self.model.original_model
@@ -384,7 +400,8 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         original_y = self.numpy2tensor(original_y, torch.long)
         original_output = original_model(original_x)
         _, predicted = torch_max(original_output.data, 1)
-        correct_num = (predicted == original_y).sum().item()
+        abstract_predict = torch.abs(predicted - original_y)
+        correct_num = (abstract_predict < margin).sum().item()
         n_total = original_y.size(0)
         return running_loss, siamese_collect_rate, correct_num/n_total
 
@@ -418,7 +435,8 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                 siamese_x, siamese_y, sample_weight, x, y = self.build_one_batch_dataset(val_enqueuer_gen,
                                                                                          data_preprocess,
                                                                                          False)
-                val_outs = self.evaluate_siamese(siamese_x, siamese_y, x, y, sample_weight=sample_weight)
+                margin = data_preprocess.margin if isinstance(data_preprocess, SiameseLearnerDataBuilder) else 1
+                val_outs = self.evaluate_siamese(siamese_x, siamese_y, x, y, margin, sample_weight=sample_weight)
                 val_outs = to_list(val_outs)
                 outs_per_batch.append(val_outs)
                 if x is None or len(x) == 0:
