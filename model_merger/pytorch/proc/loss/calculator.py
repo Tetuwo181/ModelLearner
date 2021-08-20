@@ -1,17 +1,13 @@
 import torch
 from model_merger.pytorch.proc.loss.abstract_calculator import AbstractLossCalculator
+from model_merger.pytorch.proc.loss.abstract_calculator import AbstractLossCalculatorForInceptionV3
 from math import e as exponential
 
 
-class AAEUMLoss(AbstractLossCalculator):
-    """
-    https://www.mdpi.com/2073-8994/10/9/385の論文に掲載されている損失関数
-    """
+class AAEMCaluclator(object):
 
-    def __init__(self, q: float = 100):
-        super(AAEUMLoss, self).__init__()
+    def __init__(self, q):
         self.__q = q
-
     @property
     def q(self):
         return self.__q
@@ -27,7 +23,29 @@ class AAEUMLoss(AbstractLossCalculator):
         pow_base = torch.tensor(self.q*exponential)
         return 2*torch.pow(pow_base, -((2.77/self.q)*x))
 
+
+class AAEUMLoss(AAEMCaluclator, AbstractLossCalculator):
+    """
+    https://www.mdpi.com/2073-8994/10/9/385の論文に掲載されている損失関数
+    """
+
+    def __init__(self, q: float = 100):
+        super(AAEUMLoss, self).__init__(q)
+
     def forward(self, distance, y):
         losses = y*self.l_plus(distance) + (1-y)*self.l_minus(distance)
         loss = torch.sum(losses) / (distance.size()[0])
         return loss
+
+
+class AAEMLossForForInceptionV3(AAEMCaluclator, AbstractLossCalculatorForInceptionV3):
+
+    def __init__(self, q):
+        super(AAEMLossForForInceptionV3, self).__init__(q)
+
+    def forward(self, distance, aux_distance, y, aux_y):
+        losses = y*self.l_plus(distance) + (1-y)*self.l_minus(distance)
+        loss = torch.sum(losses) / (distance.size()[0])
+        aux_losses = aux_y*self.l_plus(aux_distance) + (1-aux_y)*self.l_minus(aux_distance)
+        aux_loss = torch.sum(aux_losses) / (aux_distance.size()[0])
+        return loss, aux_loss

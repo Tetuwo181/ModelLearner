@@ -1,5 +1,6 @@
 import numpy as np
 from generator.transpose import transpose
+from typing import Optional
 
 
 def build_batch_for_siameselearner(data_batch, teachers, margin=1, build_set_num=1):
@@ -40,18 +41,24 @@ def build_shame_label(base_label, other_label, margin=1):
     return 1
 
 
-def build_batchbuilder_for_siamese(will_transpose: bool, convert_numpy: bool = False, margin=1,  build_set_num=1):
+def build_batchbuilder_for_siamese(will_transpose: bool,
+                                   convert_numpy: bool = False,
+                                   margin=1,
+                                   build_set_num=1,
+                                   aux_margin=1):
 
-    def transpose_builder(data_batch, teachers):
+    def transpose_builder(data_batch, teachers, will_use_aux: bool = False):
         use_batch = transpose(data_batch)
-        return build_batch_for_siameselearner(use_batch, teachers, margin, build_set_num)
+        use_margin = aux_margin if will_use_aux else margin
+        return build_batch_for_siameselearner(use_batch, teachers, use_margin, build_set_num)
 
-    def transpose_builder_with_convert_numpy(data_batch, teachers):
+    def transpose_builder_with_convert_numpy(data_batch, teachers, will_use_aux: bool = False):
         batch, teachers = transpose_builder(data_batch, teachers)
         return np.array(batch), teachers
 
-    def build_batch_for_siameselearner_with_convert_numpy(data_batch, teachers):
-        batch, teachers = build_batch_for_siameselearner(data_batch, teachers, margin, build_set_num)
+    def build_batch_for_siameselearner_with_convert_numpy(data_batch, teachers, will_use_aux: bool = False):
+        use_margin = aux_margin if will_use_aux else margin
+        batch, teachers = build_batch_for_siameselearner(data_batch, teachers, use_margin, build_set_num)
         return np.array(batch), teachers
 
     if convert_numpy:
@@ -61,23 +68,34 @@ def build_batchbuilder_for_siamese(will_transpose: bool, convert_numpy: bool = F
 
 class SiameseLearnerDataBuilder(object):
 
-    def __init__(self, will_transpose: bool, convert_numpy: bool, build_set_num: int,  margin: int):
+    def __init__(self,
+                 will_transpose: bool,
+                 convert_numpy: bool,
+                 build_set_num: int,
+                 margin: int,
+                 aux_margin: Optional[int] = None):
 
         self.__will_transpose = will_transpose
         self.__build_set_num = build_set_num
         self.__margin = margin
+        self.__aux_margin = margin if aux_margin is None else aux_margin
         self.__data_builder = build_batchbuilder_for_siamese(will_transpose,
                                                              convert_numpy,
                                                              margin,
-                                                             build_set_num)
+                                                             build_set_num,
+                                                             self.__aux_margin)
 
     @property
     def margin(self):
         return self.__margin
 
     @property
+    def aux_margin(self):
+        return self.__aux_margin
+
+    @property
     def build_set_num(self):
         return self.__build_set_num
 
-    def __call__(self, data_batch, teachers):
-        return self.__data_builder(data_batch, teachers)
+    def __call__(self, data_batch, teachers, will_use_aux: bool = False):
+        return self.__data_builder(data_batch, teachers, will_use_aux)
