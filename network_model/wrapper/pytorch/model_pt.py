@@ -191,10 +191,10 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         outputs = self.__model(x)
         if self.is_siamese_inceptionV3:
             loss, aux_loss = self.__loss(outputs, y)
-            loss.backward()
+            loss.backward(retain_graph=True)
             running_loss = loss.item()
+            aux_loss.backward(retain_graph=True)
             aux_running_loss = aux_loss.item()
-            aux_loss.backword()
             self.__optimizer.step()
             predicted, aux_predicted = self.get_predicted(outputs)
             collect_rate = self.calc_collect_rate(predicted, y[0]),

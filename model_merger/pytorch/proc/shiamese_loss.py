@@ -40,7 +40,10 @@ class SiameseLossForInceptionV3(SiameseLoss):
     def forward(self, params, y):
         x0 = params[0]
         x1 = params[1]
+        print(x0, x1)
         main_y = y[0]
         aux_y = y[1]
-        return self.calc_loss(x0.logits, x1.logits, main_y), self.calc_loss(x0.aux_logits, x1.aux_logits, aux_y)
+        main_loss = self.calc_loss(x0.logits, x1.logits, main_y)
+        aux_loss = self.calc_loss(x0.aux_logits, x1.aux_logits, aux_y)
+        return main_loss, aux_loss
 

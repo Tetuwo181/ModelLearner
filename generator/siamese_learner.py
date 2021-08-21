@@ -15,14 +15,19 @@ def build_other_batch(data_batch, teachers):
     return other_batch, other_teachers
 
 
-def build_siamese_label(teachers, other_teachers, margin):
-    return [build_shame_label(base_label, other_label, margin) for (base_label, other_label)
+def build_siamese_labels(teachers, other_teachers, margin):
+    return [build_siamese_label(base_label, other_label, margin) for (base_label, other_label)
+            in zip(teachers, other_teachers)]
+
+
+def build_siamese_labels_for_space(teachers, other_teachers, margin):
+    return [build_siamese_label_for_space(base_label, other_label, margin) for (base_label, other_label)
             in zip(teachers, other_teachers)]
 
 
 def build_other_teacher_and_label(data_batch, teachers, margin=1):
     other_batch, other_teachers = build_other_batch(data_batch, teachers)
-    shame_labels = build_siamese_label(data_batch, teachers, margin)
+    shame_labels = build_siamese_labels(data_batch, teachers, margin)
     return data_batch, other_batch, shame_labels
 
 
@@ -41,9 +46,13 @@ def build_other_teacher_and_labels(data_batch, teachers, margin=1, build_set_num
     return [np.array(use_data_batch), np.array(use_other_batch)], np.array(use_labels, dtype="f4")
 
 
-def build_shame_label(base_label, other_label, margin=1):
+def build_siamese_label_for_space(base_label, other_label, margin=1):
+    return 1 if np.abs(base_label - other_label) < margin else 0
+
+
+def build_siamese_label(base_label, other_label, margin=1):
     if type(base_label) is np.float32:
-        return 1 if np.abs(base_label - other_label) < margin else 0
+        return build_siamese_label_for_space(base_label, other_label, margin)
     for base_index, other_index in zip(base_label, other_label):
         if base_index != other_index:
             return 0

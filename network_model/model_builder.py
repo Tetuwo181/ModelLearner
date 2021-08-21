@@ -84,7 +84,8 @@ def build_siamese(q: float,
                   calc_distance=None,
                   save_best_only=True,
                   save_weights_only=False,
-                  save_base_filepath: str = None):
+                  save_base_filepath: str = None,
+                  is_inceptionv3: bool = False):
     use_distance = calc_distance
     if use_distance is None:
         use_distance = L1Norm() if callable(optimizer) else calc_l1_norm
@@ -107,4 +108,5 @@ def build_siamese(q: float,
                                                       model_name,
                                                       optimizer,
                                                       loss_func,
-                                                      use_distance) if callable(optimizer) else build
+                                                      use_distance,
+                                                      is_inceptionv3) if callable(optimizer) else build

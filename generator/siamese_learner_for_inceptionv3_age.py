@@ -1,5 +1,4 @@
-from generator.siamese_learner import SiameseLearnerDataBuilder, build_shame_label, build_other_batch
-from generator.siamese_learner import build_siamese_label
+from generator.siamese_learner import SiameseLearnerDataBuilder,  build_other_batch, build_siamese_labels_for_space
 import numpy as np
 from generator.transpose import transpose
 from abc import ABC, abstractmethod
@@ -42,15 +41,15 @@ class SiameseLearnerDataBuilderForInceptionV3(SiameseLearnerDataBuilder):
     def __call__(self, data_batch, teachers, will_use_aux: bool = False):
         use_batch = transpose(data_batch) if self.will_transpose else data_batch
         converted_teacher = self.__teacher_preprocessor.run_preprpocess(teachers)
-        other_batch, other_teachers = build_other_batch
+        other_batch, other_teachers = build_other_batch(use_batch, converted_teacher)
         main_base_teacher = [labels[0] for labels in converted_teacher]
         main_other_teacher = [labels[0] for labels in other_teachers]
-        main_siamese_label = build_siamese_label(main_base_teacher, main_other_teacher, self.margin)
+        main_siamese_label = build_siamese_labels_for_space(main_base_teacher, main_other_teacher, self.margin)
         aux_base_teacher = [labels[1] for labels in converted_teacher]
         aux_other_teacher = [labels[1] for labels in other_teachers]
-        aux_siamese_label = build_siamese_label(aux_base_teacher, aux_other_teacher, self.aux_margin)
+        aux_siamese_label = build_siamese_labels_for_space(aux_base_teacher, aux_other_teacher, self.aux_margin)
         batch_pair = [np.array(use_batch), np.array(other_batch)]
         siamese_label_pair = [main_siamese_label, aux_siamese_label]
-        return batch_pair, np.array(siamese_label_pair, dtype="f4")
+        return np.array(batch_pair), np.array(siamese_label_pair, dtype="f4")
 
 

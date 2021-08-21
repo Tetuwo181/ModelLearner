@@ -18,7 +18,7 @@ from model_merger.pytorch.proc.distance.calculator import L1Norm
 from model_merger.pytorch.proc.distance.abs_calculator import AbstractDistanceCaluclator
 from model_merger.pytorch.proc.loss.calculator import AAEUMLoss
 from model_merger.pytorch.proc.loss.abstract_calculator import AbstractLossCalculator
-from model_merger.pytorch.proc.shiamese_loss import SiameseLoss
+from model_merger.pytorch.proc.shiamese_loss import SiameseLoss, SiameseLossForInceptionV3
 from model_merger.pytorch.siamese import SiameseNetworkPT
 
 
@@ -80,9 +80,10 @@ class PytorchSiameseModelBuilder(PytorchModelBuilder):
                  model_name: str = "model1",
                  opt_builder: OptimizerBuilder = default_optimizer_builder,
                  loss_calculator: AbstractLossCalculator = None,
-                 calc_distance: AbstractDistanceCaluclator=L1Norm()):
+                 calc_distance: AbstractDistanceCaluclator=L1Norm(),
+                 is_inceptionv3: bool = False):
         use_loss_calculator = AAEUMLoss(q) if loss_calculator is None else loss_calculator
-        loss = SiameseLoss(calc_distance, use_loss_calculator)
+        loss = SiameseLossForInceptionV3(calc_distance, use_loss_calculator) if is_inceptionv3 else SiameseLoss(calc_distance, use_loss_calculator)
         super(PytorchSiameseModelBuilder, self).__init__(img_size,
                                                          channels,
                                                          model_name,
