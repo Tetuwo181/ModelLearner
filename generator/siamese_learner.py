@@ -7,13 +7,22 @@ def build_batch_for_siameselearner(data_batch, teachers, margin=1, build_set_num
     return build_other_teacher_and_labels(data_batch, teachers, margin, build_set_num)
 
 
-def build_other_teacher_and_label(data_batch, teachers, margin=1):
+def build_other_batch(data_batch, teachers):
     data_teacher_pair = [(data, teacher) for data, teacher in zip(data_batch, teachers)]
     shuffled_dataset = np.random.permutation(data_teacher_pair)
     other_batch = np.array([data[0] for data in shuffled_dataset])
     other_teachers = [data[1] for data in shuffled_dataset]
-    shame_labels = [build_shame_label(base_label, other_label, margin) for (base_label, other_label)
-                    in zip(teachers, other_teachers)]
+    return other_batch, other_teachers
+
+
+def build_siamese_label(teachers, other_teachers, margin):
+    return [build_shame_label(base_label, other_label, margin) for (base_label, other_label)
+            in zip(teachers, other_teachers)]
+
+
+def build_other_teacher_and_label(data_batch, teachers, margin=1):
+    other_batch, other_teachers = build_other_batch(data_batch, teachers)
+    shame_labels = build_siamese_label(data_batch, teachers, margin)
     return data_batch, other_batch, shame_labels
 
 
@@ -92,6 +101,10 @@ class SiameseLearnerDataBuilder(object):
     @property
     def aux_margin(self):
         return self.__aux_margin
+
+    @property
+    def will_transpose(self):
+        return self.__will_transpose
 
     @property
     def build_set_num(self):
