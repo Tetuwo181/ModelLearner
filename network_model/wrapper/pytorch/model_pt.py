@@ -20,6 +20,7 @@ from model_merger.pytorch.siamese import SiameseNetworkPT
 from keras.utils.generic_utils import to_list
 from generator.transpose import transpose
 from generator.siamese_learner import SiameseLearnerDataBuilder
+from generator.siamese_learner_for_inceptionv3_age import SiameseLearnerDataBuilderForInceptionV3
 from model_merger.pytorch.proc.shiamese_loss import SiameseLossForInceptionV3
 from torchvision.models.inception import Inception3
 
@@ -168,10 +169,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                     "aux_accuracy",
                     "val_loss",
                     "val_accuracy",
-                    "val_aux_loss",
-                    "val_aux_accuracy",
-                    "val_original_accuracy",
-                    "val_aux_original_accuracy"]
+                    "val_original_accuracy"]
         if self.is_siamese:
             return ["loss", "accuracy", "val_loss", "val_accuracy", "val_original_accuracy"]
         return ["loss", "accuracy", "val_loss", "val_accuracy"]
@@ -197,7 +195,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
             aux_running_loss = aux_loss.item()
             self.__optimizer.step()
             predicted, aux_predicted = self.get_predicted(outputs)
-            collect_rate = self.calc_collect_rate(predicted, y[0]),
+            collect_rate = self.calc_collect_rate(predicted, y[0])
             aux_collect_rate = self.calc_collect_rate(aux_predicted, y[1])
             return running_loss, collect_rate, aux_running_loss, aux_collect_rate
         if self.is_inceptionV3:
@@ -221,8 +219,14 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         distance = self.__loss.calc_distance(x0, x1)
         return 0 if distance < 0.5 else 1
 
-    def get_predicted(self, outputs):
+    def get_siamese_predicted_batch(self, outputs):
+        x0, x1 = outputs
+        return [self.get_siamese_predicted(param0, param1) for param0, param1 in zip(x0, x1)]
+
+    def get_predicted(self, outputs, is_training: bool = True):
         if self.is_siamese_inceptionV3:
+            if is_training is False:
+                return self.get_siamese_predicted_batch(outputs)
             x0, x1 = outputs
             predicted = [self.get_siamese_predicted(param0, param1) for param0, param1 in zip(x0.logits, x1.logits)]
             aux_predicted = [self.get_siamese_predicted(param0, param1) for param0, param1
@@ -230,8 +234,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
             return predicted, aux_predicted
 
         if self.is_siamese:
-            x0, x1 = outputs
-            return [self.get_siamese_predicted(param0, param1) for param0, param1 in zip(x0, x1)]
+            return self.get_siamese_predicted_batch(outputs)
         if self.is_binary_classifier:
             return [0 if param < 0.5 else 1 for param in outputs.data]
         _, predicted = torch_max(outputs.data, 1)
@@ -266,17 +269,9 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
 
     def evaluate(self, x, y, sample_weight=None):
         outputs, x, y = self.build_evaluate_output(x, y)
-        if self.is_siamese_inceptionV3:
-            loss, aux_loss = self.__loss(x, y)
-            running_loss = loss.item()
-            aux_running_loss = aux_loss.item()
-            predicted, aux_predicted = self.get_predicted(outputs)
-            collect_rate = self.calc_collect_rate(predicted, y[0]),
-            aux_collect_rate = self.calc_collect_rate(aux_predicted, y[1])
-            return running_loss, collect_rate, aux_running_loss, aux_collect_rate
-        loss = self.__loss(outputs, y)
+        loss = self.__loss(outputs, y, True)
         running_loss = loss.item()
-        predicted = self.get_predicted(outputs)
+        predicted = self.get_predicted(outputs, False)
         return running_loss, self.calc_collect_rate(predicted, y)
 
     def add_output_param_to_batch_log_param(self, outs, batch_logs):
@@ -297,14 +292,6 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         if self.is_siamese:
             original_accuracies = [out[0][2] for out in outs_per_batch]
             epoch_logs['val_original_accuracy'] = np.average(original_accuracies, weights=batch_sizes)
-        if self.is_siamese_inceptionV3:
-            aux_losses = np.array([out[0][3] for out in outs_per_batch])
-            epoch_logs['val_aux_loss'] = np.average(aux_losses, weights=batch_sizes)
-            aux_accuracies = [out[0][4] for out in outs_per_batch]
-            epoch_logs['val_aux_accuracy'] = np.average(aux_accuracies, weights=batch_sizes)
-            original_accuracies = [out[0][4] for out in outs_per_batch]
-            epoch_logs['val_aux_original_accuracy'] = np.average(original_accuracies, weights=batch_sizes)
-
         return epoch_logs
 
     def set_model_stop_training(self, will_stop_trainable):
@@ -327,8 +314,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                     "val_accuracy",
                     "val_aux_loss",
                     "val_aux_accuracy",
-                    "val_original_accuracy",
-                    "val_aux_original_accuracy"]
+                    "val_original_accuracy"]
         if self.is_siamese:
             return ["loss", "accuracy", "val_loss", "val_accuracy", "val_original_accuracy"]
         return ["loss", "accuracy", "val_loss", "val_accuracy"]
@@ -485,20 +471,10 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                          sample_weight=None,
                          aux_margin: Optional[int] = None):
         original_output, original_y = self.evaluate_siamese_build_original_output(original_x, original_y)
-        if self.is_siamese_inceptionV3:
-            _, predicted = torch_max(original_output.logits, 1)
-            correct_rate = self.calc_original_rate_for_siamese(original_output.logits,
-                                                               original_y[0],
-                                                               margin)
-            aux_correct_rate = self.calc_original_rate_for_siamese(original_output.aux_logits,
-                                                                   original_y[1],
-                                                                   aux_margin)
-            running_loss, siamese_collect_rate, aux_running_loss, aux_siamese_collect_rate = self.evaluate(siamese_x,
-                                                                                                           siamese_y,
-                                                                                                           sample_weight)
-            return running_loss, siamese_collect_rate, correct_rate, aux_running_loss, aux_siamese_collect_rate, aux_correct_rate
         correct_rate = self.calc_original_rate_for_siamese(original_output.data, original_y, margin)
-        running_loss, siamese_collect_rate = self.evaluate(siamese_x, siamese_y, sample_weight)
+        use_siamese_y = siamese_y[0] if self.is_siamese_inceptionV3 else siamese_y
+        running_loss, siamese_collect_rate = self.evaluate(siamese_x, use_siamese_y, sample_weight)
+        print("evaluate_siamese result", running_loss, siamese_collect_rate, correct_rate)
         return running_loss, siamese_collect_rate, correct_rate
 
     def build_one_batch_dataset(self,
@@ -533,6 +509,8 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                                                                                          False)
                 margin = data_preprocess.margin if isinstance(data_preprocess, SiameseLearnerDataBuilder) else 1
                 aux_margin = data_preprocess.aux_margin if isinstance(data_preprocess, SiameseLearnerDataBuilder) else 1
+                if isinstance(data_preprocess, SiameseLearnerDataBuilderForInceptionV3):
+                    x, y = data_preprocess.preprocess_evaluate_original(x, y)
                 val_outs = self.evaluate_siamese(siamese_x,
                                                  siamese_y,
                                                  x,

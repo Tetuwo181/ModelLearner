@@ -37,10 +37,11 @@ class SiameseLossForInceptionV3(SiameseLoss):
                  loss_calculator: AbstractLossCalculator = AAEUMLoss()):
         super(SiameseLossForInceptionV3, self).__init__(distance_calculator, loss_calculator)
         
-    def forward(self, params, y):
+    def forward(self, params, y, is_eval: bool = False):
         x0 = params[0]
         x1 = params[1]
-        print(x0, x1)
+        if is_eval:
+            return self.calc_loss(x0, x1, y)
         main_y = y[0]
         aux_y = y[1]
         main_loss = self.calc_loss(x0.logits, x1.logits, main_y)

@@ -21,6 +21,9 @@ class TeacherPreprocessor(ABC):
     def run_preprpocess(self, teacher):
         return [(self.preprocess_main(label), self.decide_aux(label)) for label in teacher]
 
+    def build_main_teacher(self, base_teacher):
+        return np.array([self.preprocess_main(label) for label in base_teacher])
+
 
 class SiameseLearnerDataBuilderForInceptionV3(SiameseLearnerDataBuilder):
 
@@ -51,5 +54,8 @@ class SiameseLearnerDataBuilderForInceptionV3(SiameseLearnerDataBuilder):
         batch_pair = [np.array(use_batch), np.array(other_batch)]
         siamese_label_pair = [main_siamese_label, aux_siamese_label]
         return np.array(batch_pair), np.array(siamese_label_pair, dtype="f4")
+
+    def preprocess_evaluate_original(self, x, y):
+        return x, self.__teacher_preprocessor.build_main_teacher(y)
 
 
