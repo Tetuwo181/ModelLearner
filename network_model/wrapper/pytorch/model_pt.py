@@ -474,7 +474,6 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         correct_rate = self.calc_original_rate_for_siamese(original_output.data, original_y, margin)
         use_siamese_y = siamese_y[0] if self.is_siamese_inceptionV3 else siamese_y
         running_loss, siamese_collect_rate = self.evaluate(siamese_x, use_siamese_y, sample_weight)
-        print("evaluate_siamese result", running_loss, siamese_collect_rate, correct_rate)
         return running_loss, siamese_collect_rate, correct_rate
 
     def build_one_batch_dataset(self,
