@@ -113,7 +113,8 @@ class AbsModelLearner(ABC):
                  will_save_h5: bool = True,
                  preprocess_for_model= None,
                  after_learned_process: Optional[Callable[[None], None]] = None,
-                 class_mode: Optional[str] = None):
+                 class_mode: Optional[str] = None,
+                 class_num: Optional[int] = None):
         """
 
         :param model_builder: モデル生成器
@@ -129,6 +130,7 @@ class AbsModelLearner(ABC):
         :param preprocess_for_model: メインの学習前にモデルに対して行う前処理
         :param after_learned_process: モデル学習後の後始末
         :param class_mode: flow_from_directoryのクラスモード
+        :param class_num: 出力するクラス数　デフォルトではクラスのリスト長と同じになる
         """
 
         self.__model_builder = model_builder
@@ -144,6 +146,7 @@ class AbsModelLearner(ABC):
         self.__preprocess_for_model = preprocess_for_model
         self.__after_learned_process = after_learned_process
         self.__class_mode = class_mode
+        self.__class_num = len(class_list) if class_num is None else class_num
 
     @property
     def preprocess_for_model(self):
@@ -179,7 +182,7 @@ class AbsModelLearner(ABC):
 
         :return: 学習させる際のクラス数
         """
-        return len(self.class_list)
+        return self.__class_num
 
     @property
     def image_size(self) -> Tuple[int, int]:

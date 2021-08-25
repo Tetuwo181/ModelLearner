@@ -26,7 +26,8 @@ class ModelLearner(AbsModelLearner):
                  will_save_h5: bool = True,
                  preprocess_for_model=None,
                  after_learned_process: Optional[Callable[[None], None]] = None,
-                 class_mode: Optional[str] = None):
+                 class_mode: Optional[str] = None,
+                 class_num: Optional[int] = None):
         """
 
         :param model_builder: モデル生成器
@@ -42,6 +43,7 @@ class ModelLearner(AbsModelLearner):
         :param preprocess_for_model: メインの学習前にモデルに対して行う前処理
         :param after_learned_process: モデル学習後の後始末
         :param class_mode: flow_from_directoryのクラスモード
+        :param class_num: 出力するクラス数　デフォルトではクラスのリスト長と同じになる
         """
 
         super().__init__(model_builder,
@@ -56,7 +58,8 @@ class ModelLearner(AbsModelLearner):
                          will_save_h5,
                          preprocess_for_model,
                          after_learned_process,
-                         class_mode)
+                         class_mode,
+                         class_num)
 
     def build_model_from_result(self,
                                 build_result,

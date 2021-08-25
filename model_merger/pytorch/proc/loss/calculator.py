@@ -49,3 +49,18 @@ class AAEMLossForForInceptionV3(AAEMCaluclator, AbstractLossCalculatorForIncepti
         aux_losses = aux_y*self.l_plus(aux_distance) + (1-aux_y)*self.l_minus(aux_distance)
         aux_loss = torch.sum(aux_losses) / (aux_distance.size()[0])
         return loss, aux_loss
+
+
+class ContrastiveLoss(AbstractLossCalculator):
+
+    def __init__(self, margin):
+        super(ContrastiveLoss, self).__init__()
+        self.__margin = margin
+
+    def forward(self, distance, y):
+        dist = torch.sqrt(distance)
+        mdist = self.__margin - dist
+        dist = torch.clamp(mdist, min=0.0)
+        loss = y * distance + (1 - y) * torch.pow(dist, 2)
+        loss = torch.sum(loss) / 2.0 / y.size()[0]
+        return loss
