@@ -48,6 +48,34 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         if use_sample_data is None:
             use_sample_data = ModelForPytorch.build_sampledata(isinstance(model_base, SiameseNetworkPT))
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        if isinstance(model_base, ModelForPytorchSiameseInceptionV3):
+            return ModelForPytorchSiameseInceptionV3(model_base,
+                                                     optimizer,
+                                                     loss,
+                                                     device,
+                                                     class_set,
+                                                     callbacks,
+                                                     monitor,
+                                                     preprocess_for_model,
+                                                     after_learned_process,
+                                                     use_sample_data,
+                                                     x_type,
+                                                     y_type
+                                                     )
+        if isinstance(model_base, ModelForPytorchSiamese):
+            return ModelForPytorchSiamese(model_base,
+                                          optimizer,
+                                          loss,
+                                          device,
+                                          class_set,
+                                          callbacks,
+                                          monitor,
+                                          preprocess_for_model,
+                                          after_learned_process,
+                                          use_sample_data,
+                                          x_type,
+                                          y_type
+                                          )
         return ModelForPytorch(model_base,
                                optimizer,
                                loss,
@@ -61,6 +89,34 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                                x_type,
                                y_type
                                )
+
+    @staticmethod
+    def build_builder(model_base: torch.nn.Module,
+                      optimizer: Optimizer,
+                      loss: _Loss,
+                      class_set: List[str],
+                      callbacks: Optional[List[keras.callbacks.Callback]] = None,
+                      monitor: str = "",
+                      preprocess_for_model=None,
+                      after_learned_process: Optional[Callable[[None], None]] = None,
+                      sample_data=None,
+                      x_type=torch.float,
+                      y_type=None,
+                      teacher_dataset = None):
+        if teacher_dataset is None:
+            return ModelForPytorch.build(model_base,
+                                        optimizer,
+                                        loss,
+                                        class_set,
+                                        callbacks,
+                                        monitor,
+                                        preprocess_for_model,
+                                        after_learned_process,
+                                        sample_data,
+                                        x_type,
+                                        y_type)
+
+
 
     @staticmethod
     def build_wrapper(model_base: torch.nn.Module,
@@ -726,3 +782,6 @@ class ModelForPytorchSiameseInceptionV3(ModelForPytorch):
         collect_rate = self.calc_collect_rate(predicted, y[0])
         aux_collect_rate = self.calc_collect_rate(aux_predicted, y[1])
         return running_loss, collect_rate, aux_running_loss, aux_collect_rate
+
+class ModelForPytorchSiameseDecidebyDistance(ModelForPytorchSiamese):
+
