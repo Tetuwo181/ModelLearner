@@ -18,8 +18,8 @@ class AAEMCaluclator(object):
     def l_minus(self, x: torch.Tensor):
         if x.is_cuda:
             use_device = x.get_device()
-            pow_base = torch.tensor(self.q*exponential).to(use_device)
-            return 2*torch.pow(pow_base, -((2.77/self.q)*x))
+            pow_base = torch.tensor(exponential).to(use_device)
+            return 2*self.q*torch.pow(pow_base, -((2.77/self.q)*x))
         pow_base = torch.tensor(self.q*exponential)
         return 2*torch.pow(pow_base, -((2.77/self.q)*x))
 
@@ -53,14 +53,28 @@ class AAEMLossForForInceptionV3(AAEMCaluclator, AbstractLossCalculatorForIncepti
 
 class ContrastiveLoss(AbstractLossCalculator):
 
-    def __init__(self, margin):
+    def __init__(self, margin=1):
         super(ContrastiveLoss, self).__init__()
         self.__margin = margin
 
     def forward(self, distance, y):
+        return self.__calc_loss(distance, y)
+
+    def calc_loss(self, distance, y):
         dist = torch.sqrt(distance)
         mdist = self.__margin - dist
         dist = torch.clamp(mdist, min=0.0)
         loss = y * distance + (1 - y) * torch.pow(dist, 2)
         loss = torch.sum(loss) / 2.0 / y.size()[0]
         return loss
+
+
+class ContrastiveLossForInceptionV3(ContrastiveLoss, AbstractLossCalculatorForInceptionV3):
+
+    def __init__(self, margin=1):
+        super(ContrastiveLossForInceptionV3, self).__init__(margin)
+
+    def forward(self, distance, aux_distance, y, aux_y):
+        loss = super(ContrastiveLossForInceptionV3, self).calc_loss(distance, y)
+        aux_loss = super(ContrastiveLossForInceptionV3, self).calc_loss(aux_distance, aux_y)
+        return loss, aux_loss

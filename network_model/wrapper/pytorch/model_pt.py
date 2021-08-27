@@ -161,6 +161,14 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         return isinstance(self.__loss, SiameseLossForInceptionV3)
 
     @property
+    def loss(self):
+        return self.__loss
+
+    @property
+    def optimizer(self):
+        return self.__optimizer
+
+    @property
     def stateful_metric_names(self):
         if self.is_siamese_inceptionV3:
             return ["loss",
@@ -173,6 +181,15 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         if self.is_siamese:
             return ["loss", "accuracy", "val_loss", "val_accuracy", "val_original_accuracy"]
         return ["loss", "accuracy", "val_loss", "val_accuracy"]
+
+    def set_model_to_device(self):
+        return self.__model.to(self.__torch_device)
+
+    def become_train_mode(self):
+        return self.__model.train()
+
+    def become_eval_mode(self):
+        return self.__model.eval()
 
     def numpy2tensor(self, param: np.ndarray, dtype) -> torch.tensor:
         converted = torch.from_numpy(param)
@@ -541,3 +558,171 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
             batch_sizes.append(batch_size)
         return self.add_output_val_param_to_epoch_log_param(outs_per_batch, batch_sizes, epoch_logs)
 
+
+class ModelForPytorchSiamese(ModelForPytorch):
+
+    @property
+    def callbacks_metric(self):
+        return ["loss", "accuracy", "val_loss", "val_accuracy", "val_original_accuracy"]
+
+    def add_output_val_param_to_epoch_log_param(self, outs_per_batch, batch_sizes, epoch_logs):
+        losses = np.array([out[0][0] for out in outs_per_batch])
+        epoch_logs['val_loss'] = np.average(losses, weights=batch_sizes)
+        accuracies = [out[0][1] for out in outs_per_batch]
+        # Same labels assumed.
+        epoch_logs['val_accuracy'] = np.average(accuracies, weights=batch_sizes)
+        original_accuracies = [out[0][2] for out in outs_per_batch]
+        epoch_logs['val_original_accuracy'] = np.average(original_accuracies, weights=batch_sizes)
+
+    def build_model_checkpoint(self, temp_best_path, save_weights_only):
+        return PytorchSiameseCheckpoint(self.model,
+                                        temp_best_path,
+                                        self.__sample_data,
+                                        monitor=self.monitor,
+                                        save_best_only=True,
+                                        save_weights_only=save_weights_only)
+
+    def build_one_batch_dataset(self,
+                                output_generator,
+                                data_preprocess=None,
+                                is_train: bool = True):
+        if is_train:
+            return super(ModelForPytorchSiamese, self).build_one_batch_dataset(output_generator,
+                                                                               data_preprocess)
+        x, y, sample_weight = self.build_raw_one_batch_dataset(output_generator)
+        siamese_x, siamese_y = data_preprocess(x, y)
+        return siamese_x, siamese_y, sample_weight, x, y
+
+    def calc_collect_rate(self, predicted, y):
+        n_total = y.size(0)
+        correct_num = 0
+        for predicted_param, teacher in zip(predicted, y):
+            if teacher < 0.5 and predicted_param < 0.5:
+                correct_num = correct_num + 1
+            if teacher > 0.5 and predicted_param > 0.5:
+                correct_num = correct_num + 1
+        return correct_num/n_total
+
+    def get_predicted(self, outputs, is_training: bool = True):
+        return self.get_siamese_predicted_batch(outputs)
+
+    def one_batch_val(self,
+                      val_enqueuer_gen,
+                      validation_steps,
+                      epoch_logs,
+                      data_preprocess=None):
+        steps = len(val_enqueuer_gen)
+        steps_done = 0
+        outs_per_batch = []
+        batch_sizes = []
+        while steps_done < steps:
+            try:
+                siamese_x, siamese_y, sample_weight, x, y = self.build_one_batch_dataset(val_enqueuer_gen,
+                                                                                         data_preprocess,
+                                                                                         False)
+                margin = data_preprocess.margin if isinstance(data_preprocess, SiameseLearnerDataBuilder) else 1
+                aux_margin = data_preprocess.aux_margin if isinstance(data_preprocess, SiameseLearnerDataBuilder) else 1
+                if isinstance(data_preprocess, SiameseLearnerDataBuilderForInceptionV3):
+                    x, y = data_preprocess.preprocess_evaluate_original(x, y)
+                val_outs = self.evaluate_siamese(siamese_x,
+                                                 siamese_y,
+                                                 x,
+                                                 y,
+                                                 margin,
+                                                 sample_weight=sample_weight,
+                                                 aux_margin=aux_margin)
+                val_outs = to_list(val_outs)
+                outs_per_batch.append(val_outs)
+                if x is None or len(x) == 0:
+                    # Handle data tensors support when no input given
+                    # step-size = 1 for data tensors
+                    batch_size = 1
+                elif isinstance(x, list):
+                    batch_size = x[0].shape[0]
+                elif isinstance(x, dict):
+                    batch_size = list(x.values())[0].shape[0]
+                else:
+                    batch_size = x.shape[0]
+                if batch_size == 0:
+                    raise ValueError('Received an empty batch. '
+                                     'Batches should contain '
+                                     'at least one item.')
+            except Exception as e:
+                print(e)
+                steps_done += 1
+                continue
+            steps_done += 1
+            batch_sizes.append(batch_size)
+        return self.add_output_val_param_to_epoch_log_param(outs_per_batch, batch_sizes, epoch_logs)
+
+
+class ModelForPytorchSiameseInceptionV3(ModelForPytorch):
+
+    @property
+    def callbacks_metric(self):
+        return ["loss",
+                "accuracy",
+                "aux_loss",
+                "aux_accuracy",
+                "val_loss",
+                "val_accuracy",
+                "val_aux_loss",
+                "val_aux_accuracy",
+                "val_original_accuracy"]
+
+    @property
+    def stateful_metric_names(self):
+        return ["loss",
+                "accuracy",
+                "aux_loss",
+                "aux_accuracy",
+                "val_loss",
+                "val_accuracy",
+                "val_original_accuracy"]
+
+    def add_output_param_to_batch_log_param(self, outs, batch_logs):
+        batch_logs["loss"] = outs[0]
+        batch_logs["accuracy"] = outs[1]
+        batch_logs["aux_loss"] = outs[2]
+        batch_logs["aux_accuracy"] = outs[3]
+        return batch_logs
+
+    def evaluate_siamese(self,
+                         siamese_x,
+                         siamese_y,
+                         original_x,
+                         original_y,
+                         margin: int,
+                         sample_weight=None,
+                         aux_margin: Optional[int] = None):
+        original_output, original_y = self.evaluate_siamese_build_original_output(original_x, original_y)
+        correct_rate = self.calc_original_rate_for_siamese(original_output.data, original_y, margin)
+        use_siamese_y = siamese_y[0]
+        running_loss, siamese_collect_rate = self.evaluate(siamese_x, use_siamese_y, sample_weight)
+        return running_loss, siamese_collect_rate, correct_rate
+
+    def get_predicted(self, outputs, is_training: bool = True):
+        if is_training is False:
+            return self.get_siamese_predicted_batch(outputs)
+        x0, x1 = outputs
+        predicted = [self.get_siamese_predicted(param0, param1) for param0, param1 in zip(x0.logits, x1.logits)]
+        aux_predicted = [self.get_siamese_predicted(param0, param1) for param0, param1
+                         in zip(x0.aux_logits, x1.aux_logits)]
+        return predicted, aux_predicted
+
+    def train_on_batch(self, x, y, sample_weight=None):
+        self.set_model_to_device()
+        self.become_train_mode()
+        self.optimizer.zero_grad()
+        x, y = self.convert_data_for_model(x, y)
+        outputs = self.model(x)
+        loss, aux_loss = self.loss(outputs, y)
+        loss.backward(retain_graph=True)
+        running_loss = loss.item()
+        aux_loss.backward(retain_graph=True)
+        aux_running_loss = aux_loss.item()
+        self.__optimizer.step()
+        predicted, aux_predicted = self.get_predicted(outputs)
+        collect_rate = self.calc_collect_rate(predicted, y[0])
+        aux_collect_rate = self.calc_collect_rate(aux_predicted, y[1])
+        return running_loss, collect_rate, aux_running_loss, aux_collect_rate
