@@ -230,6 +230,14 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         return self.__torch_device
 
     @property
+    def x_type(self):
+        return self.__x_type
+
+    @property
+    def y_type(self):
+        return self.__y_type
+
+    @property
     def stateful_metric_names(self):
         if self.is_siamese_inceptionV3:
             return ["loss",
@@ -823,20 +831,32 @@ class ModelForPytorchSiameseDecidebyDistance(ModelForPytorchSiamese):
         self.__decide_dataset_generator = decide_dataset_generator
         self.__nearest_data_ave_num = nearest_data_ave_num
 
-    def build_calc_succeed_rate_dataset(self, x: torch.Tensor, y: torch.Tensor):
+    def build_calc_succeed_rate_dataset(self, x: torch.Tensor, y: torch.Tensor, data_preprocess):
         # GPUメモリ対策のためにいったんデータをCPUへ退避
-        x.cpu()
-        y.cpu()
+        x = x.cpu().detach().numpy().copy()
+        y = y.cpu().detach().numpy().copy()
+        predicted = np.array([self.get_predicted_from_a_data(param, data_preprocess) for param in x])
+        diff = predicted-y
+        return len(diff[diff==0])/len(diff)
 
     def get_pair_for_predict_input(self, x, predict_dataset_batch):
         input_x = np.array([x for _ in len(predict_dataset_batch)])
-        converted_input = torch.from_numpy(input_x).to(self.torch_device)
+        converted_input = self.numpy2tensor(input_x, self.x_type)
+        predict_dataset_batch = self.numpy2tensor(predict_dataset_batch, self.x_type)
         return [converted_input, predict_dataset_batch]
 
-
     def get_predicted_from_a_data(self, x, data_preprocess):
-        for batch_x, batch_y in self.__decide_dataset_generator:
-            batch_x, batch_y = data_preprocess.preprocess_for_calc_data(batch_x, batch_y)
+        neighbor_recorder = NeighborRecorder(self.__nearest_data_ave_num)
+        for decide_batch_x, decide_batch_y in self.__decide_dataset_generator:
+            decide_batch_x, decide_batch_y = data_preprocess.preprocess_for_calc_data(decide_batch_x, decide_batch_y)
+            use_batch = self.get_pair_for_predict_input(x, decide_batch_x)
+            predicted_result = self.model(use_batch)
+            distances = self.loss.calc_distance(predicted_result)
+            distances = distances.cpu().detach().numpy().copy()
+            for distance, class_index in zip(distances, decide_batch_y):
+                neighbor_recorder.record(distance, class_index)
+        return neighbor_recorder.get_predicted_index()
+
 
 
 
