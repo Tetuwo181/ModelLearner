@@ -23,6 +23,7 @@ from generator.siamese_learner import SiameseLearnerDataBuilder
 from generator.siamese_learner_for_inceptionv3_age import SiameseLearnerDataBuilderForInceptionV3
 from model_merger.pytorch.proc.shiamese_loss import SiameseLossForInceptionV3
 from torchvision.models.inception import Inception3
+from network_model.wrapper.pytorch.util.neighbor_recorder import NeighborRecorder
 
 
 class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
@@ -223,6 +224,10 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
     @property
     def optimizer(self):
         return self.__optimizer
+
+    @property
+    def torch_device(self):
+        return self.__torch_device
 
     @property
     def stateful_metric_names(self):
@@ -501,13 +506,13 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
 
     def build_model_checkpoint(self, temp_best_path, save_weights_only):
         if self.is_siamese:
-            return PytorchSiameseCheckpoint(self.__model,
+            return PytorchSiameseCheckpoint(self.model,
                                             temp_best_path,
                                             self.__sample_data,
                                             monitor=self.monitor,
                                             save_best_only=True,
                                             save_weights_only=save_weights_only)
-        return PytorchCheckpoint(self.__model,
+        return PytorchCheckpoint(self.model,
                                  temp_best_path,
                                  self.__sample_data,
                                  monitor=self.monitor,
@@ -783,5 +788,55 @@ class ModelForPytorchSiameseInceptionV3(ModelForPytorch):
         aux_collect_rate = self.calc_collect_rate(aux_predicted, y[1])
         return running_loss, collect_rate, aux_running_loss, aux_collect_rate
 
+
 class ModelForPytorchSiameseDecidebyDistance(ModelForPytorchSiamese):
+
+    def __init__(self,
+                 model_base: torch.nn.Module,
+                 optimizer: Optimizer,
+                 loss: _Loss,
+                 torch_device,
+                 class_set: List[str],
+                 decide_dataset_generator,
+                 callbacks: Optional[List[keras.callbacks.Callback]] = None,
+                 monitor: str = "",
+                 preprocess_for_model=None,
+                 after_learned_process: Optional[Callable[[None], None]] = None,
+                 sample_data=torch.rand(1, 3, 224, 224),
+                 x_type=torch.float,
+                 y_type=None,
+                 nearest_data_ave_num=1):
+
+        super().__init__(self,
+                         model_base,
+                         optimizer,
+                         loss,
+                         torch_device,
+                         class_set,
+                         callbacks,
+                         monitor,
+                         preprocess_for_model,
+                         after_learned_process,
+                         sample_data,
+                         x_type,
+                         y_type)
+        self.__decide_dataset_generator = decide_dataset_generator
+        self.__nearest_data_ave_num = nearest_data_ave_num
+
+    def build_calc_succeed_rate_dataset(self, x: torch.Tensor, y: torch.Tensor):
+        # GPUメモリ対策のためにいったんデータをCPUへ退避
+        x.cpu()
+        y.cpu()
+
+    def get_pair_for_predict_input(self, x, predict_dataset_batch):
+        input_x = np.array([x for _ in len(predict_dataset_batch)])
+        converted_input = torch.from_numpy(input_x).to(self.torch_device)
+        return [converted_input, predict_dataset_batch]
+
+
+    def get_predicted_from_a_data(self, x, data_preprocess):
+        for batch_x, batch_y in self.__decide_dataset_generator:
+            batch_x, batch_y = data_preprocess.preprocess_for_calc_data(batch_x, batch_y)
+
+
 

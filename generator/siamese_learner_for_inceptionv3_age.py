@@ -58,4 +58,8 @@ class SiameseLearnerDataBuilderForInceptionV3(SiameseLearnerDataBuilder):
     def preprocess_evaluate_original(self, x, y):
         return x, self.__teacher_preprocessor.build_main_teacher(y)
 
+    def preprocess_for_calc_data(self, x, y):
+        use_x = transpose(x) if self.will_transpose else x
+        return use_x, self.__teacher_preprocessor.build_main_teacher(y)
+
 
