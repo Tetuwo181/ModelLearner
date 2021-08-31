@@ -85,7 +85,9 @@ def build_siamese(q: float,
                   save_best_only=True,
                   save_weights_only=False,
                   save_base_filepath: str = None,
-                  is_inceptionv3: bool = False):
+                  is_inceptionv3: bool = False,
+                  decide_dataset_generator=None,
+                  nearest_data_ave_num=1):
     use_distance = calc_distance
     if use_distance is None:
         use_distance = L1Norm() if callable(optimizer) else calc_l1_norm
@@ -109,4 +111,6 @@ def build_siamese(q: float,
                                                       optimizer,
                                                       loss_func,
                                                       use_distance,
-                                                      is_inceptionv3) if callable(optimizer) else build
+                                                      is_inceptionv3,
+                                                      decide_dataset_generator,
+                                                      nearest_data_ave_num) if callable(optimizer) else build

@@ -48,12 +48,16 @@ class PytorchModelBuilder(object):
                  channels: int = 3,
                  model_name: str = "model1",
                  opt_builder: OptimizerBuilder = default_optimizer_builder,
-                 loss: _Loss = None):
+                 loss: _Loss = None,
+                 decide_dataset_generator=None,
+                 nearest_data_ave_num=1):
         self.__img_size = img_size
         self.__channels = channels
         self.__model_name = model_name
         self.__opt_builder = opt_builder
         self.__loss = loss
+        self.__decide_dataset_generator = decide_dataset_generator
+        self.__nearest_data_ave_num = nearest_data_ave_num
 
     def build_raw_model(self, model_builder_input) -> torch.nn.Module:
         if self.__model_name == "tempload":
@@ -65,7 +69,9 @@ class PytorchModelBuilder(object):
         optimizer = self.__opt_builder(base_model)
         return ModelForPytorch.build_wrapper(base_model,
                                              optimizer,
-                                             self.__loss)
+                                             self.__loss,
+                                             self.__decide_dataset_generator,
+                                             self.__nearest_data_ave_num)
 
     def __call__(self, model_builder_input):
         return self.build_model_builder_wrapper(model_builder_input)
@@ -81,14 +87,18 @@ class PytorchSiameseModelBuilder(PytorchModelBuilder):
                  opt_builder: OptimizerBuilder = default_optimizer_builder,
                  loss_calculator: AbstractLossCalculator = None,
                  calc_distance: AbstractDistanceCaluclator=L1Norm(),
-                 is_inceptionv3: bool = False):
+                 is_inceptionv3: bool = False,
+                 decide_dataset_generator=None,
+                 nearest_data_ave_num=1):
         use_loss_calculator = AAEUMLoss(q) if loss_calculator is None else loss_calculator
         loss = SiameseLossForInceptionV3(calc_distance, use_loss_calculator) if is_inceptionv3 else SiameseLoss(calc_distance, use_loss_calculator)
         super(PytorchSiameseModelBuilder, self).__init__(img_size,
                                                          channels,
                                                          model_name,
                                                          opt_builder,
-                                                         loss
+                                                         loss,
+                                                         decide_dataset_generator,
+                                                         nearest_data_ave_num
                                                          )
 
     def build_raw_model(self, model_builder_input) -> torch.nn.Module:
