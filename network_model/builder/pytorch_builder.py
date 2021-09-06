@@ -50,7 +50,8 @@ class PytorchModelBuilder(object):
                  opt_builder: OptimizerBuilder = default_optimizer_builder,
                  loss: _Loss = None,
                  decide_dataset_generator=None,
-                 nearest_data_ave_num=1):
+                 nearest_data_ave_num=1,
+                 will_calc_rate_real_data_train=False):
         self.__img_size = img_size
         self.__channels = channels
         self.__model_name = model_name
@@ -58,6 +59,7 @@ class PytorchModelBuilder(object):
         self.__loss = loss
         self.__decide_dataset_generator = decide_dataset_generator
         self.__nearest_data_ave_num = nearest_data_ave_num
+        self.__will_calc_rate_real_data_train = will_calc_rate_real_data_train
 
     def build_raw_model(self, model_builder_input) -> torch.nn.Module:
         if self.__model_name == "tempload":
@@ -70,8 +72,9 @@ class PytorchModelBuilder(object):
         return ModelForPytorch.build_wrapper(base_model,
                                              optimizer,
                                              self.__loss,
-                                             self.__decide_dataset_generator,
-                                             self.__nearest_data_ave_num)
+                                             decide_dataset_generator=self.__decide_dataset_generator,
+                                             nearest_data_ave_num=self.__nearest_data_ave_num,
+                                             will_calc_rate_real_data_train=self.__will_calc_rate_real_data_train)
 
     def __call__(self, model_builder_input):
         return self.build_model_builder_wrapper(model_builder_input)
@@ -89,7 +92,8 @@ class PytorchSiameseModelBuilder(PytorchModelBuilder):
                  calc_distance: AbstractDistanceCaluclator=L1Norm(),
                  is_inceptionv3: bool = False,
                  decide_dataset_generator=None,
-                 nearest_data_ave_num=1):
+                 nearest_data_ave_num=1,
+                 will_calc_rate_real_data_train=False):
         use_loss_calculator = AAEUMLoss(q) if loss_calculator is None else loss_calculator
         loss = SiameseLossForInceptionV3(calc_distance, use_loss_calculator) if is_inceptionv3 else SiameseLoss(calc_distance, use_loss_calculator)
         super(PytorchSiameseModelBuilder, self).__init__(img_size,
@@ -98,7 +102,8 @@ class PytorchSiameseModelBuilder(PytorchModelBuilder):
                                                          opt_builder,
                                                          loss,
                                                          decide_dataset_generator,
-                                                         nearest_data_ave_num
+                                                         nearest_data_ave_num,
+                                                         will_calc_rate_real_data_train
                                                          )
 
     def build_raw_model(self, model_builder_input) -> torch.nn.Module:

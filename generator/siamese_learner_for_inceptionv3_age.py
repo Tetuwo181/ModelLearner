@@ -24,6 +24,12 @@ class TeacherPreprocessor(ABC):
     def build_main_teacher(self, base_teacher):
         return np.array([self.preprocess_main(label) for label in base_teacher])
 
+    def build_aux_teacher(self, base_teacher):
+        return np.array([self.decide_aux(label) for label in base_teacher])
+
+    def build_teacher_for_train(self, teacher):
+        return self.build_main_teacher(teacher), self.build_aux_teacher(teacher)
+
 
 class SiameseLearnerDataBuilderForInceptionV3(SiameseLearnerDataBuilder):
 
@@ -58,8 +64,11 @@ class SiameseLearnerDataBuilderForInceptionV3(SiameseLearnerDataBuilder):
     def preprocess_evaluate_original(self, x, y):
         return x, self.__teacher_preprocessor.build_main_teacher(y)
 
-    def preprocess_for_calc_data(self, x, y):
+    def preprocess_for_calc_data(self, x, y, is_train=False):
         use_x = transpose(x) if self.will_transpose else x
+        if is_train:
+            return use_x, self.build_teachers_for_train(y)
         return use_x, self.__teacher_preprocessor.build_main_teacher(y)
 
-
+    def build_teachers_for_train(self, teachers):
+        return self.__teacher_preprocessor.build_teacher_for_train(teachers)

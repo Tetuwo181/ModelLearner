@@ -1,13 +1,17 @@
+from numba import jit
+
 
 class NeighborRecorder(object):
 
-    def __init__(self, record_max_num:int):
+    def __init__(self, record_max_num: int):
         self.__record_max_num = record_max_num
-        self.__record_distances = []
-        self.__record_indexes = []
+        self.__record_distances = None
+        self.__record_indexes = None
 
     @property
     def data_num(self) -> int:
+        if self.__record_distances is None:
+            return 0
         return len(self.__record_distances)
 
     @property
@@ -17,12 +21,13 @@ class NeighborRecorder(object):
     def get_predicted_index(self):
         if self.data_num == 0:
             return -1
-        return sum(self.__record_indexes)//self.count_num
+        result = sum(self.__record_indexes)//self.count_num
+        return result
 
     def record(self, distance, class_index):
         if self.data_num == 0:
-            self.__record_distances.append(distance)
-            self.__record_indexes.append(class_index)
+            self.__record_distances = [distance]
+            self.__record_indexes = [class_index]
             return self
         if self.__record_distances[0] > distance:
             self.__record_distances.insert(0, distance)
