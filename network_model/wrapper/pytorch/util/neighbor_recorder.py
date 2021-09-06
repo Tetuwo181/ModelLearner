@@ -1,4 +1,5 @@
 from numba import jit
+import nmslib
 
 
 class NeighborRecorder(object):
@@ -18,11 +19,29 @@ class NeighborRecorder(object):
     def count_num(self) -> int:
         return self.data_num if self.data_num < self.__record_max_num else self.__record_max_num
 
+    def append_distances(self, distances):
+        if self.__record_distances is None:
+            self.__record_distances = distances
+            return self
+        self.__record_distances = self.__record_distances + distances
+        return self
+
+    def append_indexes(self, indexes):
+        if self.__record_indexes is None:
+            self.__record_indexes = indexes
+            return self
+        self.__record_indexes = self.__record_distances + indexes
+        return self
+
     def get_predicted_index(self):
         if self.data_num == 0:
             return -1
         result = sum(self.__record_indexes)//self.count_num
         return result
+
+    def record_distances(self, distances, class_indexes):
+        for distance, class_index in zip(distances, class_indexes):
+            self.record(distance, class_index)
 
     def record(self, distance, class_index):
         if self.data_num == 0:
@@ -44,3 +63,11 @@ class NeighborRecorder(object):
                 return self
         return self
 
+
+class NeighborRecorderSearchKNN(NeighborRecorder):
+
+    def __init__(self, record_max_num):
+        super().__init__(self, record_max_num)
+
+    def record_distances(self, distances, class_indexes):
+        self.append_distances(distances).append_indexes(class_indexes)

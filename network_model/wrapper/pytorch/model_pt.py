@@ -886,9 +886,7 @@ class ModelForPytorchSiameseDecidebyDistance(ModelForPytorchSiamese):
                          aux_margin: Optional[int] = None,
                          data_preprocess=None):
         self.model.eval()
-        print("start evaluate siamese")
         correct_rate = self.build_calc_succeed_rate_dataset(siamese_x[0], original_y, data_preprocess, margin)
-        print("rate", correct_rate)
         use_siamese_y = siamese_y[0] if self.is_siamese_inceptionV3 else siamese_y
         running_loss, siamese_collect_rate = self.evaluate(siamese_x, use_siamese_y, sample_weight)
         return running_loss, siamese_collect_rate, correct_rate
