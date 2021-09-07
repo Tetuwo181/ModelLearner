@@ -892,9 +892,8 @@ class ModelForPytorchSiameseDecidebyDistance(ModelForPytorchSiamese):
         return running_loss, siamese_collect_rate, correct_rate
 
     def build_calc_succeed_rate_dataset(self, x: np.ndarray, y: np.ndarray, data_preprocess, margin, is_training=False):
-        # GPUメモリ対策のためにいったんデータをCPUへ退避
-        predicted = np.array([self.get_predicted_from_a_data(param, data_preprocess, is_training) for param in x])
         if is_training:
+            predicted = np.array([self.get_predicted_from_a_data(param, data_preprocess, is_training) for param in x])
             main_predicted = np.array([param[0] for param in predicted])
             aux_predicted = np.array([param[1] for param in predicted])
             teachers = data_preprocess.build_teachers_for_train(y)
@@ -903,6 +902,9 @@ class ModelForPytorchSiameseDecidebyDistance(ModelForPytorchSiamese):
             aux_diff = aux_predicted - teachers[1]
             aux_rate = len(aux_diff[aux_diff < margin])/len(aux_diff)
             return main_rate, aux_rate
+        base_predicted = self.model.get_original_predict(x)
+        sample_predicted, sample_teacher = self.get_predict_sample_data(data_preprocess)
+        predicted = self.get_classes_from_distances(base_predicted, sample_predicted, sample_teacher)
         teacher = data_preprocess.build_teachers_for_train(y)[0]
         diff = np.abs(predicted-teacher)
         correct_num = (diff < margin).sum()
@@ -914,10 +916,11 @@ class ModelForPytorchSiameseDecidebyDistance(ModelForPytorchSiamese):
         predict_dataset_batch = self.numpy2tensor(predict_dataset_batch, self.x_type)
         return [converted_input, predict_dataset_batch]
 
-    def decide_class_from_distance(self, distances, decide_batch_y, neighbor_recorder):
+    def decide_class_from_distance(self, distances, decide_batch_y, neighbor_recorder=None):
+        use_recorder = NeighborRecorder(self.__nearest_data_ave_num) if neighbor_recorder is None else neighbor_recorder
         for distance, class_index in zip(distances, decide_batch_y):
-            neighbor_recorder.record(distance, class_index)
-        return neighbor_recorder
+            use_recorder.record(distance, class_index)
+        return use_recorder
 
     def calc_result_distances_for_train_mode(self, predicted_result):
         out0, out1 = predicted_result
@@ -947,6 +950,14 @@ class ModelForPytorchSiameseDecidebyDistance(ModelForPytorchSiamese):
             index = index+1
         return neigbor_recorder.get_predicted_index(), aux_neighbor_recorder.get_predicted_index()
 
+    def get_classes_from_distances(self, predict, sample_predicted, sample_teacher):
+        return np.array([self.decide_class_from_distance(param, sample_predicted, sample_teacher) for param in predict])
+
+    def calc_class_from_distance(self, base_predict, sample_predicted, sample_teacher):
+        use_base_predict_set = self.numpy2tensor(np.array([base_predict for _ in sample_predicted]), self.x_type)
+        distances = self.loss.calc_distance(use_base_predict_set, sample_predicted).cpu().detach().numpy()
+        return self.decide_class_from_distance(distances, sample_teacher).get_predicted_index()
+
     def get_predicted_from_a_data(self, x, data_preprocess, is_training: bool = False):
         if is_training:
             return self.get_predicted_from_a_data_train_mode(x, data_preprocess)
@@ -964,6 +975,17 @@ class ModelForPytorchSiameseDecidebyDistance(ModelForPytorchSiamese):
                 neighbor_recorder.record(distance, class_index)
             index = index + 1
         return neighbor_recorder.get_predicted_index()
+
+    def get_predict_sample_data(self, data_preprocess):
+        index = 0
+        max_index = len(self.__decide_dataset_generator)
+        while index < max_index:
+            decide_batch_x, decide_batch_y = next(self.__decide_dataset_generator)
+            decide_batch_x, decide_batch_y = data_preprocess.preprocess_for_calc_data(decide_batch_x, decide_batch_y)
+            predicted = self.model.get_original_predict(self.numpy2tensor(decide_batch_x, self.__x_type)).cpu().detach().numpy()
+            predicted_results = predicted if index == 0 else np.append(predicted_results, predicted, axis=0)
+            teachers = decide_batch_y if index == 0 else np.append(teachers, decide_batch_y, axis=0)
+        return predicted_results, teachers
 
     def one_batch(self,
                   output_generator,
