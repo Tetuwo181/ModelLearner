@@ -592,6 +592,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                          original_x,
                          original_y,
                          margin: int,
+                         steps_done: int,
                          sample_weight=None,
                          aux_margin: Optional[int] = None,
                          data_preprocess=None):
@@ -631,6 +632,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                                                  x,
                                                  y,
                                                  margin,
+                                                 steps_done,
                                                  sample_weight=sample_weight,
                                                  aux_margin=aux_margin,
                                                  data_preprocess=data_preprocess)
@@ -736,6 +738,7 @@ class ModelForPytorchSiamese(ModelForPytorch):
                                                  x,
                                                  y,
                                                  margin,
+                                                 steps_done,
                                                  sample_weight=sample_weight,
                                                  aux_margin=aux_margin,
                                                  data_preprocess=data_preprocess)
@@ -801,6 +804,7 @@ class ModelForPytorchSiameseInceptionV3(ModelForPytorch):
                          original_x,
                          original_y,
                          margin: int,
+                         steps_done: int,
                          sample_weight=None,
                          aux_margin: Optional[int] = None,
                          data_preprocess=None):
@@ -875,6 +879,8 @@ class ModelForPytorchSiameseDecidebyDistance(ModelForPytorchSiamese):
         self.__decide_dataset_generator = decide_dataset_generator
         self.__nearest_data_ave_num = nearest_data_ave_num
         self.__will_calc_real_data_train = will_calc_rate_real_data_train
+        self.__memorize_predicted_results = None
+        self.__memorize_teachers = None
 
     def evaluate_siamese(self,
                          siamese_x,
@@ -882,16 +888,27 @@ class ModelForPytorchSiameseDecidebyDistance(ModelForPytorchSiamese):
                          original_x,
                          original_y,
                          margin: int,
+                         steps_done: int,
                          sample_weight=None,
                          aux_margin: Optional[int] = None,
                          data_preprocess=None):
         self.model.eval()
-        correct_rate = self.build_calc_succeed_rate_dataset(siamese_x[0], original_y, data_preprocess, margin)
+        correct_rate = self.build_calc_succeed_rate_dataset(siamese_x[0],
+                                                            original_y,
+                                                            data_preprocess,
+                                                            margin,
+                                                            steps_done)
         use_siamese_y = siamese_y[0] if self.is_siamese_inceptionV3 else siamese_y
         running_loss, siamese_collect_rate = self.evaluate(siamese_x, use_siamese_y, sample_weight)
         return running_loss, siamese_collect_rate, correct_rate
 
-    def build_calc_succeed_rate_dataset(self, x: np.ndarray, y: np.ndarray, data_preprocess, margin, is_training=False):
+    def build_calc_succeed_rate_dataset(self,
+                                        x: np.ndarray,
+                                        y: np.ndarray,
+                                        data_preprocess,
+                                        margin,
+                                        steps_done: int,
+                                        is_training=False):
         if is_training:
             predicted = np.array([self.get_predicted_from_a_data(param, data_preprocess, is_training) for param in x])
             main_predicted = np.array([param[0] for param in predicted])
@@ -902,9 +919,11 @@ class ModelForPytorchSiameseDecidebyDistance(ModelForPytorchSiamese):
             aux_diff = aux_predicted - teachers[1]
             aux_rate = len(aux_diff[aux_diff < margin])/len(aux_diff)
             return main_rate, aux_rate
-        base_predicted = self.model.get_original_predict(x)
-        sample_predicted, sample_teacher = self.get_predict_sample_data(data_preprocess)
-        predicted = self.get_classes_from_distances(base_predicted, sample_predicted, sample_teacher)
+        base_predicted = self.model.get_original_predict(self.numpy2tensor(x, self.x_type))
+        sample_predicted, sample_teacher = self.get_predict_sample_data(data_preprocess, steps_done)
+        predicted = self.get_classes_from_distances(base_predicted.cpu().detach().numpy().copy(),
+                                                    sample_predicted,
+                                                    sample_teacher)
         teacher = data_preprocess.build_teachers_for_train(y)[0]
         diff = np.abs(predicted-teacher)
         correct_num = (diff < margin).sum()
@@ -951,10 +970,10 @@ class ModelForPytorchSiameseDecidebyDistance(ModelForPytorchSiamese):
         return neigbor_recorder.get_predicted_index(), aux_neighbor_recorder.get_predicted_index()
 
     def get_classes_from_distances(self, predict, sample_predicted, sample_teacher):
-        return np.array([self.decide_class_from_distance(param, sample_predicted, sample_teacher) for param in predict])
+        return np.array([self.calc_class_from_distance(param, sample_predicted, sample_teacher) for param in predict])
 
     def calc_class_from_distance(self, base_predict, sample_predicted, sample_teacher):
-        use_base_predict_set = self.numpy2tensor(np.array([base_predict for _ in sample_predicted]), self.x_type)
+        use_base_predict_set = torch.from_numpy(np.array([base_predict for _ in sample_predicted]))
         distances = self.loss.calc_distance(use_base_predict_set, sample_predicted).cpu().detach().numpy()
         return self.decide_class_from_distance(distances, sample_teacher).get_predicted_index()
 
@@ -976,16 +995,21 @@ class ModelForPytorchSiameseDecidebyDistance(ModelForPytorchSiamese):
             index = index + 1
         return neighbor_recorder.get_predicted_index()
 
-    def get_predict_sample_data(self, data_preprocess):
+    def get_predict_sample_data(self, data_preprocess, steps_done):
+        if steps_done > 0:
+            return self.__memorize_predicted_results, self.__memorize_teachers
         index = 0
         max_index = len(self.__decide_dataset_generator)
         while index < max_index:
             decide_batch_x, decide_batch_y = next(self.__decide_dataset_generator)
             decide_batch_x, decide_batch_y = data_preprocess.preprocess_for_calc_data(decide_batch_x, decide_batch_y)
-            predicted = self.model.get_original_predict(self.numpy2tensor(decide_batch_x, self.__x_type)).cpu().detach().numpy()
+            predicted = self.model.get_original_predict(self.numpy2tensor(decide_batch_x, self.x_type)).cpu().detach().numpy()
             predicted_results = predicted if index == 0 else np.append(predicted_results, predicted, axis=0)
             teachers = decide_batch_y if index == 0 else np.append(teachers, decide_batch_y, axis=0)
-        return predicted_results, teachers
+            index = index+1
+            self.__memorize_predicted_results = predicted_results
+            self.__memorize_teachers = teachers
+        return self.__memorize_predicted_results, self.__memorize_teachers
 
     def one_batch(self,
                   output_generator,

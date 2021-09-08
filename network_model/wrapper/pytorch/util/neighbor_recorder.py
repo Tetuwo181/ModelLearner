@@ -1,5 +1,4 @@
 from numba import jit
-import nmslib
 
 
 class NeighborRecorder(object):
@@ -63,11 +62,3 @@ class NeighborRecorder(object):
                 return self
         return self
 
-
-class NeighborRecorderSearchKNN(NeighborRecorder):
-
-    def __init__(self, record_max_num):
-        super().__init__(self, record_max_num)
-
-    def record_distances(self, distances, class_indexes):
-        self.append_distances(distances).append_indexes(class_indexes)
