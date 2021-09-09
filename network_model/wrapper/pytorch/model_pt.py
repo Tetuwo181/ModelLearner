@@ -917,9 +917,9 @@ class ModelForPytorchSiameseDecidebyDistance(ModelForPytorchSiamese):
                                                             sample_predicted[1],
                                                             sample_teacher[1])
             teachers = data_preprocess.build_teachers_for_train(y)
-            diff = main_predicted - teachers[0]
+            diff = np.abs(main_predicted - teachers[0])
             main_rate = len(diff[diff < margin])/len(diff)
-            aux_diff = aux_predicted - teachers[1]
+            aux_diff = np.abs(aux_predicted - teachers[1])
             aux_rate = len(aux_diff[aux_diff < aux_margin])/len(aux_diff)
             return main_rate, aux_rate
         predicted = self.get_classes_from_distances(base_predicted.cpu().detach().numpy().copy(),
