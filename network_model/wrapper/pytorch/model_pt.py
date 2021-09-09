@@ -286,6 +286,8 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                     "accuracy",
                     "aux_loss",
                     "aux_accuracy",
+                    "original_accuracy",
+                    "aux_original_accuracy",
                     "val_loss",
                     "val_accuracy",
                     "val_original_accuracy"]
@@ -438,6 +440,8 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                     "accuracy",
                     "aux_loss",
                     "aux_accuracy",
+                    "original_accuracy",
+                    "aux_original_accuracy",
                     "val_loss",
                     "val_accuracy",
                     "val_aux_loss",
@@ -591,11 +595,11 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                          siamese_y,
                          original_x,
                          original_y,
-                         margin: int,
                          steps_done: int,
                          sample_weight=None,
-                         aux_margin: Optional[int] = None,
                          data_preprocess=None):
+        margin = data_preprocess.margin if isinstance(data_preprocess, SiameseLearnerDataBuilder) else 1
+        aux_margin = data_preprocess.aux_margin if isinstance(data_preprocess, SiameseLearnerDataBuilder) else 1
         original_output, original_y = self.evaluate_siamese_build_original_output(original_x, original_y)
         correct_rate = self.calc_original_rate_for_siamese(original_output.data, original_y, margin)
         use_siamese_y = siamese_y[0] if self.is_siamese_inceptionV3 else siamese_y
@@ -623,18 +627,14 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                 siamese_x, siamese_y, sample_weight, x, y = self.build_one_batch_dataset(val_enqueuer_gen,
                                                                                          data_preprocess,
                                                                                          False)
-                margin = data_preprocess.margin if isinstance(data_preprocess, SiameseLearnerDataBuilder) else 1
-                aux_margin = data_preprocess.aux_margin if isinstance(data_preprocess, SiameseLearnerDataBuilder) else 1
                 if isinstance(data_preprocess, SiameseLearnerDataBuilderForInceptionV3):
                     x, y = data_preprocess.preprocess_evaluate_original(x, y)
                 val_outs = self.evaluate_siamese(siamese_x,
                                                  siamese_y,
                                                  x,
                                                  y,
-                                                 margin,
                                                  steps_done,
                                                  sample_weight=sample_weight,
-                                                 aux_margin=aux_margin,
                                                  data_preprocess=data_preprocess)
                 val_outs = to_list(val_outs)
                 outs_per_batch.append(val_outs)
@@ -803,11 +803,11 @@ class ModelForPytorchSiameseInceptionV3(ModelForPytorch):
                          siamese_y,
                          original_x,
                          original_y,
-                         margin: int,
                          steps_done: int,
                          sample_weight=None,
-                         aux_margin: Optional[int] = None,
                          data_preprocess=None):
+        margin = data_preprocess.margin if isinstance(data_preprocess, SiameseLearnerDataBuilder) else 1
+        aux_margin = data_preprocess.aux_margin if isinstance(data_preprocess, SiameseLearnerDataBuilder) else 1
         original_output, original_y = self.evaluate_siamese_build_original_output(original_x, original_y)
         correct_rate = self.calc_original_rate_for_siamese(original_output.data, original_y, margin)
         use_siamese_y = siamese_y[0]
@@ -887,16 +887,13 @@ class ModelForPytorchSiameseDecidebyDistance(ModelForPytorchSiamese):
                          siamese_y,
                          original_x,
                          original_y,
-                         margin: int,
                          steps_done: int,
                          sample_weight=None,
-                         aux_margin: Optional[int] = None,
                          data_preprocess=None):
         self.model.eval()
         correct_rate = self.build_calc_succeed_rate_dataset(siamese_x[0],
                                                             original_y,
                                                             data_preprocess,
-                                                            margin,
                                                             steps_done)
         use_siamese_y = siamese_y[0] if self.is_siamese_inceptionV3 else siamese_y
         running_loss, siamese_collect_rate = self.evaluate(siamese_x, use_siamese_y, sample_weight)
@@ -906,21 +903,25 @@ class ModelForPytorchSiameseDecidebyDistance(ModelForPytorchSiamese):
                                         x: np.ndarray,
                                         y: np.ndarray,
                                         data_preprocess,
-                                        margin,
                                         steps_done: int,
                                         is_training=False):
+        margin = data_preprocess.margin if isinstance(data_preprocess, SiameseLearnerDataBuilder) else 1
+        base_predicted = self.model.get_original_predict(self.numpy2tensor(x, self.x_type))
+        sample_predicted, sample_teacher = self.get_predict_sample_data(data_preprocess, steps_done, is_training)
         if is_training:
-            predicted = np.array([self.get_predicted_from_a_data(param, data_preprocess, is_training) for param in x])
-            main_predicted = np.array([param[0] for param in predicted])
-            aux_predicted = np.array([param[1] for param in predicted])
+            main_predicted = self.get_classes_from_distances(base_predicted.logits.cpu().detach().numpy().copy(),
+                                                             sample_predicted[0],
+                                                             sample_teacher[0])
+            aux_margin = data_preprocess.aux_margin if isinstance(data_preprocess, SiameseLearnerDataBuilder) else 1
+            aux_predicted = self.get_classes_from_distances(base_predicted.aux_logits.cpu().detach().numpy().copy(),
+                                                            sample_predicted[1],
+                                                            sample_teacher[1])
             teachers = data_preprocess.build_teachers_for_train(y)
             diff = main_predicted - teachers[0]
             main_rate = len(diff[diff < margin])/len(diff)
             aux_diff = aux_predicted - teachers[1]
-            aux_rate = len(aux_diff[aux_diff < margin])/len(aux_diff)
+            aux_rate = len(aux_diff[aux_diff < aux_margin])/len(aux_diff)
             return main_rate, aux_rate
-        base_predicted = self.model.get_original_predict(self.numpy2tensor(x, self.x_type))
-        sample_predicted, sample_teacher = self.get_predict_sample_data(data_preprocess, steps_done)
         predicted = self.get_classes_from_distances(base_predicted.cpu().detach().numpy().copy(),
                                                     sample_predicted,
                                                     sample_teacher)
@@ -995,17 +996,25 @@ class ModelForPytorchSiameseDecidebyDistance(ModelForPytorchSiamese):
             index = index + 1
         return neighbor_recorder.get_predicted_index()
 
-    def get_predict_sample_data(self, data_preprocess, steps_done):
-        if steps_done > 0:
+    def get_predict_sample_data(self, data_preprocess, steps_done, is_training=False):
+        if steps_done > 0 and is_training is not True:
             return self.__memorize_predicted_results, self.__memorize_teachers
         index = 0
         max_index = len(self.__decide_dataset_generator)
         while index < max_index:
             decide_batch_x, decide_batch_y = next(self.__decide_dataset_generator)
-            decide_batch_x, decide_batch_y = data_preprocess.preprocess_for_calc_data(decide_batch_x, decide_batch_y)
-            predicted = self.model.get_original_predict(self.numpy2tensor(decide_batch_x, self.x_type)).cpu().detach().numpy()
-            predicted_results = predicted if index == 0 else np.append(predicted_results, predicted, axis=0)
-            teachers = decide_batch_y if index == 0 else np.append(teachers, decide_batch_y, axis=0)
+            decide_batch_x, decide_batch_y = data_preprocess.preprocess_for_calc_data(decide_batch_x,
+                                                                                      decide_batch_y,
+                                                                                      is_training)
+            predicted = self.model.get_original_predict(self.numpy2tensor(decide_batch_x, self.x_type))
+            if is_training:
+                predicted = (predicted.logits.cpu().detach().numpy(), predicted.aux_logits.cpu().detach().numpy())
+                predicted_results = predicted if index == 0 else (np.append(predicted_results[0], predicted[0], axis=0), np.append(predicted_results[1], predicted[1], axis=0))
+                teachers = decide_batch_y if index == 0 else (np.append(teachers[0], decide_batch_y[0], axis=0), np.append(teachers[1], decide_batch_y[1], axis=0))
+            else:
+                predicted = predicted.cpu().detach().numpy()
+                predicted_results = predicted if index == 0 else np.append(predicted_results, predicted, axis=0)
+                teachers = decide_batch_y if index == 0 else np.append(teachers, decide_batch_y, axis=0)
             index = index+1
             self.__memorize_predicted_results = predicted_results
             self.__memorize_teachers = teachers
@@ -1022,8 +1031,9 @@ class ModelForPytorchSiameseDecidebyDistance(ModelForPytorchSiamese):
                                                                                  callbacks,
                                                                                  data_preprocess)
         if self.__will_calc_real_data_train:
-            succeed_rate = (self.build_calc_succeed_rate_dataset(x[0], original_y, data_preprocess, True),)
+            succeed_rate = (self.build_calc_succeed_rate_dataset(x[0], original_y, data_preprocess, steps_done, True),)
             outs = outs + succeed_rate
+            self.model.train()
         return self.run_after_finished_batch(outs, batch_logs, callbacks, batch_index, steps_done)
 
     def train_on_batch(self, x, y, sample_weight=None, data_preprocess=None):
@@ -1053,3 +1063,11 @@ class ModelForPytorchSiameseDecidebyDistance(ModelForPytorchSiamese):
                 self.optimizer.step()
             return running_loss, self.calc_collect_rate(predicted, y)
 
+    def add_output_param_to_batch_log_param(self, outs, batch_logs):
+        batch_logs["loss"] = outs[0]
+        batch_logs["accuracy"] = outs[1]
+        batch_logs["aux_loss"] = outs[2]
+        batch_logs["aux_accuracy"] = outs[3]
+        batch_logs["original_accuracy"] = outs[4][0]
+        batch_logs["aux_original_accuracy"] = outs[4][1]
+        return batch_logs
