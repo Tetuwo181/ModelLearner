@@ -737,10 +737,8 @@ class ModelForPytorchSiamese(ModelForPytorch):
                                                  siamese_y,
                                                  x,
                                                  y,
-                                                 margin,
                                                  steps_done,
                                                  sample_weight=sample_weight,
-                                                 aux_margin=aux_margin,
                                                  data_preprocess=data_preprocess)
                 val_outs = to_list(val_outs)
                 outs_per_batch.append(val_outs)
