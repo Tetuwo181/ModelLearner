@@ -21,3 +21,5 @@ class SiameseNetworkPT(torch.nn.Module):
     def original_model(self):
         return self.__base_model
 
+    def get_original_predict(self, input_tensor: Tensor):
+        return self.__base_model(input_tensor)

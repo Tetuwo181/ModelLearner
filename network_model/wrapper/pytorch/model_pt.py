@@ -23,6 +23,8 @@ from generator.siamese_learner import SiameseLearnerDataBuilder
 from generator.siamese_learner_for_inceptionv3_age import SiameseLearnerDataBuilderForInceptionV3
 from model_merger.pytorch.proc.shiamese_loss import SiameseLossForInceptionV3
 from torchvision.models.inception import Inception3
+from network_model.wrapper.pytorch.util.neighbor_recorder import NeighborRecorder
+from numba import jit
 
 
 class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
@@ -43,11 +45,59 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
               after_learned_process: Optional[Callable[[None], None]] = None,
               sample_data=None,
               x_type=torch.float,
-              y_type=None):
+              y_type=None,
+              decide_dataset_generator=None,
+              nearest_data_ave_num=1,
+              will_calc_rate_real_data_train=False):
         use_sample_data = sample_data
         if use_sample_data is None:
             use_sample_data = ModelForPytorch.build_sampledata(isinstance(model_base, SiameseNetworkPT))
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        if decide_dataset_generator is not None:
+            return ModelForPytorchSiameseDecidebyDistance(model_base,
+                                                          optimizer,
+                                                          loss,
+                                                          device,
+                                                          class_set,
+                                                          decide_dataset_generator,
+                                                          callbacks,
+                                                          monitor,
+                                                          preprocess_for_model,
+                                                          after_learned_process,
+                                                          use_sample_data,
+                                                          x_type,
+                                                          y_type,
+                                                          nearest_data_ave_num,
+                                                          will_calc_rate_real_data_train
+                                                          )
+        if isinstance(model_base, ModelForPytorchSiameseInceptionV3):
+            return ModelForPytorchSiameseInceptionV3(model_base,
+                                                     optimizer,
+                                                     loss,
+                                                     device,
+                                                     class_set,
+                                                     callbacks,
+                                                     monitor,
+                                                     preprocess_for_model,
+                                                     after_learned_process,
+                                                     use_sample_data,
+                                                     x_type,
+                                                     y_type
+                                                     )
+        if isinstance(model_base, ModelForPytorchSiamese):
+            return ModelForPytorchSiamese(model_base,
+                                          optimizer,
+                                          loss,
+                                          device,
+                                          class_set,
+                                          callbacks,
+                                          monitor,
+                                          preprocess_for_model,
+                                          after_learned_process,
+                                          use_sample_data,
+                                          x_type,
+                                          y_type
+                                          )
         return ModelForPytorch(model_base,
                                optimizer,
                                loss,
@@ -63,10 +113,45 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                                )
 
     @staticmethod
+    def build_builder(model_base: torch.nn.Module,
+                      optimizer: Optimizer,
+                      loss: _Loss,
+                      class_set: List[str],
+                      callbacks: Optional[List[keras.callbacks.Callback]] = None,
+                      monitor: str = "",
+                      preprocess_for_model=None,
+                      after_learned_process: Optional[Callable[[None], None]] = None,
+                      sample_data=None,
+                      x_type=torch.float,
+                      y_type=None,
+                      teacher_dataset=None,
+                      decide_dataset_generator=None,
+                      nearest_data_ave_num=1):
+        if teacher_dataset is None:
+            return ModelForPytorch.build(model_base,
+                                         optimizer,
+                                         loss,
+                                         class_set,
+                                         callbacks,
+                                         monitor,
+                                         preprocess_for_model,
+                                         after_learned_process,
+                                         sample_data,
+                                         x_type,
+                                         y_type,
+                                         decide_dataset_generator,
+                                         nearest_data_ave_num)
+
+
+
+    @staticmethod
     def build_wrapper(model_base: torch.nn.Module,
                       optimizer: Optimizer,
                       loss: _Loss = None,
-                      sample_data=None):
+                      sample_data=None,
+                      decide_dataset_generator=None,
+                      nearest_data_ave_num=1,
+                      will_calc_rate_real_data_train=False):
         use_sample_data = sample_data
         if use_sample_data is None:
             use_sample_data = ModelForPytorch.build_sampledata(isinstance(model_base, SiameseNetworkPT))
@@ -89,7 +174,10 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                                              after_learned_process,
                                              use_sample_data,
                                              x_type,
-                                             y_type)
+                                             y_type,
+                                             decide_dataset_generator=decide_dataset_generator,
+                                             nearest_data_ave_num=nearest_data_ave_num,
+                                             will_calc_rate_real_data_train=will_calc_rate_real_data_train)
             use_loss = CrossEntropyLoss() if len(class_set) > 2 else BCELoss()
             return ModelForPytorch.build(model_base,
                                          optimizer,
@@ -101,7 +189,10 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                                          after_learned_process,
                                          use_sample_data,
                                          x_type,
-                                         y_type)
+                                         y_type,
+                                         decide_dataset_generator=decide_dataset_generator,
+                                         nearest_data_ave_num=nearest_data_ave_num,
+                                         will_calc_rate_real_data_train=will_calc_rate_real_data_train)
         return build_model
 
     def __init__(self,
@@ -161,18 +252,57 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         return isinstance(self.__loss, SiameseLossForInceptionV3)
 
     @property
+    def model(self):
+        return self.__model
+
+    @property
+    def loss(self):
+        return self.__loss
+
+    @property
+    def optimizer(self):
+        return self.__optimizer
+
+    @property
+    def torch_device(self):
+        return self.__torch_device
+
+    @property
+    def sample_data(self):
+        return self.__sample_data
+
+    @property
+    def x_type(self):
+        return self.__x_type
+
+    @property
+    def y_type(self):
+        return self.__y_type
+
+    @property
     def stateful_metric_names(self):
         if self.is_siamese_inceptionV3:
             return ["loss",
                     "accuracy",
                     "aux_loss",
                     "aux_accuracy",
+                    "original_accuracy",
+                    "aux_original_accuracy",
                     "val_loss",
                     "val_accuracy",
                     "val_original_accuracy"]
         if self.is_siamese:
             return ["loss", "accuracy", "val_loss", "val_accuracy", "val_original_accuracy"]
         return ["loss", "accuracy", "val_loss", "val_accuracy"]
+
+    def set_model_to_device(self):
+        return self.__model.to(self.__torch_device)
+
+    def become_train_mode(self):
+        return self.__model.train()
+
+    def become_eval_mode(self):
+        return self.__model.eval()
 
     def numpy2tensor(self, param: np.ndarray, dtype) -> torch.tensor:
         converted = torch.from_numpy(param)
@@ -181,7 +311,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
     def convert_data_for_model(self, x: np.ndarray, y):
         return self.numpy2tensor(x, self.__x_type), self.numpy2tensor(y, self.__y_type)
 
-    def train_on_batch(self, x, y, sample_weight=None):
+    def train_on_batch(self, x, y, sample_weight=None, data_preprocess=None):
         self.__model.to(self.__torch_device)
         self.__model.train()
         self.__optimizer.zero_grad()
@@ -310,6 +440,8 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                     "accuracy",
                     "aux_loss",
                     "aux_accuracy",
+                    "original_accuracy",
+                    "aux_original_accuracy",
                     "val_loss",
                     "val_accuracy",
                     "val_aux_loss",
@@ -319,9 +451,6 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
             return ["loss", "accuracy", "val_loss", "val_accuracy", "val_original_accuracy"]
         return ["loss", "accuracy", "val_loss", "val_accuracy"]
 
-    @property
-    def model(self) -> keras.engine.training.Model:
-        return self.__model
 
     def build_model_file_name(self, model_name):
         return model_name + ".pt"
@@ -400,7 +529,6 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         :param data_preprocess:
         :return:
         """
-        print("fit builder")
         self.__model = self.run_preprocess_model(self.__model)
         self.__model.to(self.__torch_device)
         if validation_data is None:
@@ -428,15 +556,15 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
 
     def build_model_checkpoint(self, temp_best_path, save_weights_only):
         if self.is_siamese:
-            return PytorchSiameseCheckpoint(self.__model,
+            return PytorchSiameseCheckpoint(self.model,
                                             temp_best_path,
-                                            self.__sample_data,
+                                            self.sample_data,
                                             monitor=self.monitor,
                                             save_best_only=True,
                                             save_weights_only=save_weights_only)
-        return PytorchCheckpoint(self.__model,
+        return PytorchCheckpoint(self.model,
                                  temp_best_path,
-                                 self.__sample_data,
+                                 self.sample_data,
                                  monitor=self.monitor,
                                  save_best_only=True,
                                  save_weights_only=save_weights_only)
@@ -467,25 +595,16 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                          siamese_y,
                          original_x,
                          original_y,
-                         margin: int,
+                         steps_done: int,
                          sample_weight=None,
-                         aux_margin: Optional[int] = None):
+                         data_preprocess=None):
+        margin = data_preprocess.margin if isinstance(data_preprocess, SiameseLearnerDataBuilder) else 1
+        aux_margin = data_preprocess.aux_margin if isinstance(data_preprocess, SiameseLearnerDataBuilder) else 1
         original_output, original_y = self.evaluate_siamese_build_original_output(original_x, original_y)
         correct_rate = self.calc_original_rate_for_siamese(original_output.data, original_y, margin)
         use_siamese_y = siamese_y[0] if self.is_siamese_inceptionV3 else siamese_y
         running_loss, siamese_collect_rate = self.evaluate(siamese_x, use_siamese_y, sample_weight)
         return running_loss, siamese_collect_rate, correct_rate
-
-    def build_one_batch_dataset(self,
-                                output_generator,
-                                data_preprocess=None,
-                                is_train: bool = True):
-        if self.is_siamese is False or is_train:
-            return super(ModelForPytorch, self).build_one_batch_dataset(output_generator,
-                                                                        data_preprocess)
-        x, y, sample_weight = self.build_raw_one_batch_dataset(output_generator)
-        siamese_x, siamese_y = data_preprocess(x, y)
-        return siamese_x, siamese_y, sample_weight, x, y
 
     def one_batch_val(self,
                       val_enqueuer_gen,
@@ -501,22 +620,22 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
         steps_done = 0
         outs_per_batch = []
         batch_sizes = []
+        print(type(data_preprocess))
         while steps_done < steps:
             try:
+                print("step", steps_done)
                 siamese_x, siamese_y, sample_weight, x, y = self.build_one_batch_dataset(val_enqueuer_gen,
                                                                                          data_preprocess,
                                                                                          False)
-                margin = data_preprocess.margin if isinstance(data_preprocess, SiameseLearnerDataBuilder) else 1
-                aux_margin = data_preprocess.aux_margin if isinstance(data_preprocess, SiameseLearnerDataBuilder) else 1
                 if isinstance(data_preprocess, SiameseLearnerDataBuilderForInceptionV3):
                     x, y = data_preprocess.preprocess_evaluate_original(x, y)
                 val_outs = self.evaluate_siamese(siamese_x,
                                                  siamese_y,
                                                  x,
                                                  y,
-                                                 margin,
+                                                 steps_done,
                                                  sample_weight=sample_weight,
-                                                 aux_margin=aux_margin)
+                                                 data_preprocess=data_preprocess)
                 val_outs = to_list(val_outs)
                 outs_per_batch.append(val_outs)
                 if x is None or len(x) == 0:
@@ -541,3 +660,412 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
             batch_sizes.append(batch_size)
         return self.add_output_val_param_to_epoch_log_param(outs_per_batch, batch_sizes, epoch_logs)
 
+
+class ModelForPytorchSiamese(ModelForPytorch):
+
+    @property
+    def callbacks_metric(self):
+        return ["loss", "accuracy", "val_loss", "val_accuracy", "val_original_accuracy"]
+
+    def add_output_val_param_to_epoch_log_param(self, outs_per_batch, batch_sizes, epoch_logs):
+        losses = np.array([out[0][0] for out in outs_per_batch])
+        epoch_logs['val_loss'] = np.average(losses, weights=batch_sizes)
+        accuracies = [out[0][1] for out in outs_per_batch]
+        # Same labels assumed.
+        epoch_logs['val_accuracy'] = np.average(accuracies, weights=batch_sizes)
+        original_accuracies = [out[0][2] for out in outs_per_batch]
+        epoch_logs['val_original_accuracy'] = np.average(original_accuracies, weights=batch_sizes)
+        return epoch_logs
+
+    def build_model_checkpoint(self, temp_best_path, save_weights_only):
+        return PytorchSiameseCheckpoint(self.model,
+                                        temp_best_path,
+                                        self.sample_data,
+                                        monitor=self.monitor,
+                                        save_best_only=True,
+                                        save_weights_only=save_weights_only)
+
+    def build_one_batch_dataset(self,
+                                output_generator,
+                                data_preprocess=None,
+                                will_get_original: bool = True):
+        if will_get_original:
+            return super(ModelForPytorchSiamese, self).build_one_batch_dataset(output_generator,
+                                                                               data_preprocess)
+        x, y, sample_weight = self.build_raw_one_batch_dataset(output_generator)
+        siamese_x, siamese_y = data_preprocess(x, y)
+        return siamese_x, siamese_y, sample_weight, x, y
+
+    def calc_collect_rate(self, predicted, y):
+        n_total = y.size(0)
+        correct_num = 0
+        for predicted_param, teacher in zip(predicted, y):
+            if teacher < 0.5 and predicted_param < 0.5:
+                correct_num = correct_num + 1
+            if teacher > 0.5 and predicted_param > 0.5:
+                correct_num = correct_num + 1
+        return correct_num/n_total
+
+    def get_predicted(self, outputs, is_training: bool = True):
+        if is_training is False:
+            return self.get_siamese_predicted_batch(outputs)
+        x0, x1 = outputs
+        predicted = [self.get_siamese_predicted(param0, param1) for param0, param1 in zip(x0.logits, x1.logits)]
+        aux_predicted = [self.get_siamese_predicted(param0, param1) for param0, param1
+                         in zip(x0.aux_logits, x1.aux_logits)]
+        return predicted, aux_predicted
+
+    def one_batch_val(self,
+                      val_enqueuer_gen,
+                      validation_steps,
+                      epoch_logs,
+                      data_preprocess=None):
+        steps = len(val_enqueuer_gen)
+        steps_done = 0
+        outs_per_batch = []
+        batch_sizes = []
+        while steps_done < steps:
+            try:
+                siamese_x, siamese_y, sample_weight, x, y = self.build_one_batch_dataset(val_enqueuer_gen,
+                                                                                         data_preprocess,
+                                                                                         False)
+                margin = data_preprocess.margin if isinstance(data_preprocess, SiameseLearnerDataBuilder) else 1
+                aux_margin = data_preprocess.aux_margin if isinstance(data_preprocess, SiameseLearnerDataBuilder) else 1
+                if isinstance(data_preprocess, SiameseLearnerDataBuilderForInceptionV3):
+                    x, y = data_preprocess.preprocess_evaluate_original(x, y)
+                val_outs = self.evaluate_siamese(siamese_x,
+                                                 siamese_y,
+                                                 x,
+                                                 y,
+                                                 steps_done,
+                                                 sample_weight=sample_weight,
+                                                 data_preprocess=data_preprocess)
+                val_outs = to_list(val_outs)
+                outs_per_batch.append(val_outs)
+                if x is None or len(x) == 0:
+                    # Handle data tensors support when no input given
+                    # step-size = 1 for data tensors
+                    batch_size = 1
+                elif isinstance(x, list):
+                    batch_size = x[0].shape[0]
+                elif isinstance(x, dict):
+                    batch_size = list(x.values())[0].shape[0]
+                else:
+                    batch_size = x.shape[0]
+                if batch_size == 0:
+                    raise ValueError('Received an empty batch. '
+                                     'Batches should contain '
+                                     'at least one item.')
+            except Exception as e:
+                print(e)
+                steps_done += 1
+                continue
+            steps_done += 1
+            batch_sizes.append(batch_size)
+        return self.add_output_val_param_to_epoch_log_param(outs_per_batch, batch_sizes, epoch_logs)
+
+
+class ModelForPytorchSiameseInceptionV3(ModelForPytorch):
+
+    @property
+    def callbacks_metric(self):
+        return ["loss",
+                "accuracy",
+                "aux_loss",
+                "aux_accuracy",
+                "val_loss",
+                "val_accuracy",
+                "val_aux_loss",
+                "val_aux_accuracy",
+                "val_original_accuracy"]
+
+    @property
+    def stateful_metric_names(self):
+        return ["loss",
+                "accuracy",
+                "aux_loss",
+                "aux_accuracy",
+                "val_loss",
+                "val_accuracy",
+                "val_original_accuracy"]
+
+    def add_output_param_to_batch_log_param(self, outs, batch_logs):
+        batch_logs["loss"] = outs[0]
+        batch_logs["accuracy"] = outs[1]
+        batch_logs["aux_loss"] = outs[2]
+        batch_logs["aux_accuracy"] = outs[3]
+        return batch_logs
+
+    def evaluate_siamese(self,
+                         siamese_x,
+                         siamese_y,
+                         original_x,
+                         original_y,
+                         steps_done: int,
+                         sample_weight=None,
+                         data_preprocess=None):
+        margin = data_preprocess.margin if isinstance(data_preprocess, SiameseLearnerDataBuilder) else 1
+        aux_margin = data_preprocess.aux_margin if isinstance(data_preprocess, SiameseLearnerDataBuilder) else 1
+        original_output, original_y = self.evaluate_siamese_build_original_output(original_x, original_y)
+        correct_rate = self.calc_original_rate_for_siamese(original_output.data, original_y, margin)
+        use_siamese_y = siamese_y[0]
+        running_loss, siamese_collect_rate = self.evaluate(siamese_x, use_siamese_y, sample_weight)
+        return running_loss, siamese_collect_rate, correct_rate
+
+    def get_predicted(self, outputs, is_training: bool = True):
+        if is_training is False:
+            return self.get_siamese_predicted_batch(outputs)
+        x0, x1 = outputs
+        predicted = [self.get_siamese_predicted(param0, param1) for param0, param1 in zip(x0.logits, x1.logits)]
+        aux_predicted = [self.get_siamese_predicted(param0, param1) for param0, param1
+                         in zip(x0.aux_logits, x1.aux_logits)]
+        return predicted, aux_predicted
+
+    def train_on_batch(self,
+                       x,
+                       y,
+                       sample_weight=None,
+                       data_preprocess=None):
+        self.set_model_to_device()
+        self.become_train_mode()
+        self.optimizer.zero_grad()
+        x, y = self.convert_data_for_model(x, y)
+        outputs = self.model(x)
+        loss, aux_loss = self.loss(outputs, y)
+        loss.backward(retain_graph=True)
+        running_loss = loss.item()
+        aux_loss.backward(retain_graph=True)
+        aux_running_loss = aux_loss.item()
+        self.__optimizer.step()
+        predicted, aux_predicted = self.get_predicted(outputs)
+        collect_rate = self.calc_collect_rate(predicted, y[0])
+        aux_collect_rate = self.calc_collect_rate(aux_predicted, y[1])
+        return running_loss, collect_rate, aux_running_loss, aux_collect_rate
+
+
+class ModelForPytorchSiameseDecidebyDistance(ModelForPytorchSiamese):
+
+    def __init__(self,
+                 model_base: torch.nn.Module,
+                 optimizer: Optimizer,
+                 loss: _Loss,
+                 torch_device,
+                 class_set: List[str],
+                 decide_dataset_generator,
+                 callbacks: Optional[List[keras.callbacks.Callback]] = None,
+                 monitor: str = "",
+                 preprocess_for_model=None,
+                 after_learned_process: Optional[Callable[[None], None]] = None,
+                 sample_data=torch.rand(1, 3, 224, 224),
+                 x_type=torch.float,
+                 y_type=None,
+                 nearest_data_ave_num=1,
+                 will_calc_rate_real_data_train=False):
+
+        super(ModelForPytorchSiameseDecidebyDistance, self).__init__(model_base,
+                                                                     optimizer,
+                                                                     loss,
+                                                                     torch_device,
+                                                                     class_set,
+                                                                     callbacks,
+                                                                     monitor,
+                                                                     preprocess_for_model,
+                                                                     after_learned_process,
+                                                                     sample_data,
+                                                                     x_type,
+                                                                     y_type)
+        self.__decide_dataset_generator = decide_dataset_generator
+        self.__nearest_data_ave_num = nearest_data_ave_num
+        self.__will_calc_real_data_train = will_calc_rate_real_data_train
+        self.__memorize_predicted_results = None
+        self.__memorize_teachers = None
+
+    def evaluate_siamese(self,
+                         siamese_x,
+                         siamese_y,
+                         original_x,
+                         original_y,
+                         steps_done: int,
+                         sample_weight=None,
+                         data_preprocess=None):
+        self.model.eval()
+        correct_rate = self.build_calc_succeed_rate_dataset(siamese_x[0],
+                                                            original_y,
+                                                            data_preprocess,
+                                                            steps_done)
+        use_siamese_y = siamese_y[0] if self.is_siamese_inceptionV3 else siamese_y
+        running_loss, siamese_collect_rate = self.evaluate(siamese_x, use_siamese_y, sample_weight)
+        return running_loss, siamese_collect_rate, correct_rate
+
+    def build_calc_succeed_rate_dataset(self,
+                                        x: np.ndarray,
+                                        y: np.ndarray,
+                                        data_preprocess,
+                                        steps_done: int,
+                                        is_training=False):
+        margin = data_preprocess.margin if isinstance(data_preprocess, SiameseLearnerDataBuilder) else 1
+        base_predicted = self.model.get_original_predict(self.numpy2tensor(x, self.x_type))
+        sample_predicted, sample_teacher = self.get_predict_sample_data(data_preprocess, steps_done, is_training)
+        if is_training:
+            main_predicted = self.get_classes_from_distances(base_predicted.logits.cpu().detach().numpy().copy(),
+                                                             sample_predicted[0],
+                                                             sample_teacher[0])
+            aux_margin = data_preprocess.aux_margin if isinstance(data_preprocess, SiameseLearnerDataBuilder) else 1
+            aux_predicted = self.get_classes_from_distances(base_predicted.aux_logits.cpu().detach().numpy().copy(),
+                                                            sample_predicted[1],
+                                                            sample_teacher[1])
+            teachers = data_preprocess.build_teachers_for_train(y)
+            diff = np.abs(main_predicted - teachers[0])
+            main_rate = len(diff[diff < margin])/len(diff)
+            aux_diff = np.abs(aux_predicted - teachers[1])
+            aux_rate = len(aux_diff[aux_diff < aux_margin])/len(aux_diff)
+            return main_rate, aux_rate
+        predicted = self.get_classes_from_distances(base_predicted.cpu().detach().numpy().copy(),
+                                                    sample_predicted,
+                                                    sample_teacher)
+        teacher = data_preprocess.build_teachers_for_train(y)[0]
+        diff = np.abs(predicted-teacher)
+        correct_num = (diff < margin).sum()
+        return correct_num/diff.size
+
+    def get_pair_for_predict_input(self, x, predict_dataset_batch):
+        input_x = np.array([x for _ in predict_dataset_batch])
+        converted_input = self.numpy2tensor(input_x, self.x_type)
+        predict_dataset_batch = self.numpy2tensor(predict_dataset_batch, self.x_type)
+        return [converted_input, predict_dataset_batch]
+
+    def decide_class_from_distance(self, distances, decide_batch_y, neighbor_recorder=None):
+        use_recorder = NeighborRecorder(self.__nearest_data_ave_num) if neighbor_recorder is None else neighbor_recorder
+        for distance, class_index in zip(distances, decide_batch_y):
+            use_recorder.record(distance, class_index)
+        return use_recorder
+
+    def calc_result_distances_for_train_mode(self, predicted_result):
+        out0, out1 = predicted_result
+        main_distances = self.loss.calc_distance(out0.logits, out1.logits)
+        aux_distances = self.loss.calc_distance(out0.aux_logits, out1.aux_logits)
+        return main_distances.cpu().detach().numpy().copy(), aux_distances.cpu().detach().numpy().copy()
+
+    def get_predicted_from_a_data_train_mode(self, x, data_preprocess):
+        neigbor_recorder = NeighborRecorder(self.__nearest_data_ave_num)
+        aux_neighbor_recorder = NeighborRecorder(self.__nearest_data_ave_num)
+        index = 0
+        max_index = len(self.__decide_dataset_generator)
+        while index < max_index:
+            decide_batch_x, decide_batch_y = next(self.__decide_dataset_generator)
+            decide_batch_x, decide_batch_y = data_preprocess.preprocess_for_calc_data(decide_batch_x,
+                                                                                      decide_batch_y,
+                                                                                      True)
+            use_batch = self.get_pair_for_predict_input(x, decide_batch_x)
+            predicted_result = self.model(use_batch)
+            main_distances, aux_distances = self.calc_result_distances_for_train_mode(predicted_result)
+            neigbor_recorder = self.decide_class_from_distance(main_distances,
+                                                               decide_batch_y[0],
+                                                               neigbor_recorder)
+            aux_neighbor_recorder = self.decide_class_from_distance(aux_distances,
+                                                                    decide_batch_y[1],
+                                                                    aux_neighbor_recorder)
+            index = index+1
+        return neigbor_recorder.get_predicted_index(), aux_neighbor_recorder.get_predicted_index()
+
+    def get_classes_from_distances(self, predict, sample_predicted, sample_teacher):
+        return np.array([self.calc_class_from_distance(param, sample_predicted, sample_teacher) for param in predict])
+
+    def calc_class_from_distance(self, base_predict, sample_predicted, sample_teacher):
+        use_base_predict_set = torch.from_numpy(np.array([base_predict for _ in sample_predicted]))
+        distances = self.loss.calc_distance(use_base_predict_set, sample_predicted).cpu().detach().numpy()
+        return self.decide_class_from_distance(distances, sample_teacher).get_predicted_index()
+
+    def get_predicted_from_a_data(self, x, data_preprocess, is_training: bool = False):
+        if is_training:
+            return self.get_predicted_from_a_data_train_mode(x, data_preprocess)
+        neighbor_recorder = NeighborRecorder(self.__nearest_data_ave_num)
+        index = 0
+        max_index = len(self.__decide_dataset_generator)
+        while index < max_index:
+            decide_batch_x, decide_batch_y = next(self.__decide_dataset_generator)
+            decide_batch_x, decide_batch_y = data_preprocess.preprocess_for_calc_data(decide_batch_x, decide_batch_y)
+            use_batch = self.get_pair_for_predict_input(x, decide_batch_x)
+            predicted_result = self.model(use_batch)
+            distances = self.loss.calc_distance(predicted_result[0], predicted_result[1])
+            distances = distances.cpu().detach().numpy().copy()
+            for distance, class_index in zip(distances, decide_batch_y):
+                neighbor_recorder.record(distance, class_index)
+            index = index + 1
+        return neighbor_recorder.get_predicted_index()
+
+    def get_predict_sample_data(self, data_preprocess, steps_done, is_training=False):
+        if steps_done > 0 and is_training is not True:
+            return self.__memorize_predicted_results, self.__memorize_teachers
+        index = 0
+        max_index = len(self.__decide_dataset_generator)
+        while index < max_index:
+            decide_batch_x, decide_batch_y = next(self.__decide_dataset_generator)
+            decide_batch_x, decide_batch_y = data_preprocess.preprocess_for_calc_data(decide_batch_x,
+                                                                                      decide_batch_y,
+                                                                                      is_training)
+            predicted = self.model.get_original_predict(self.numpy2tensor(decide_batch_x, self.x_type))
+            if is_training:
+                predicted = (predicted.logits.cpu().detach().numpy(), predicted.aux_logits.cpu().detach().numpy())
+                predicted_results = predicted if index == 0 else (np.append(predicted_results[0], predicted[0], axis=0), np.append(predicted_results[1], predicted[1], axis=0))
+                teachers = decide_batch_y if index == 0 else (np.append(teachers[0], decide_batch_y[0], axis=0), np.append(teachers[1], decide_batch_y[1], axis=0))
+            else:
+                predicted = predicted.cpu().detach().numpy()
+                predicted_results = predicted if index == 0 else np.append(predicted_results, predicted, axis=0)
+                teachers = decide_batch_y if index == 0 else np.append(teachers, decide_batch_y, axis=0)
+            index = index+1
+            self.__memorize_predicted_results = predicted_results
+            self.__memorize_teachers = teachers
+        return self.__memorize_predicted_results, self.__memorize_teachers
+
+    def one_batch(self,
+                  output_generator,
+                  batch_index: int,
+                  steps_done: int,
+                  callbacks,
+                  data_preprocess=None):
+        x, y, original_x, original_y, outs, batch_logs = self.run_one_batch_base(output_generator,
+                                                                                 batch_index,
+                                                                                 callbacks,
+                                                                                 data_preprocess)
+        if self.__will_calc_real_data_train:
+            succeed_rate = (self.build_calc_succeed_rate_dataset(x[0], original_y, data_preprocess, steps_done, True),)
+            outs = outs + succeed_rate
+            self.model.train()
+        return self.run_after_finished_batch(outs, batch_logs, callbacks, batch_index, steps_done)
+
+    def train_on_batch(self, x, y, sample_weight=None, data_preprocess=None):
+        self.model.to(self.torch_device)
+        self.model.train()
+        self.optimizer.zero_grad()
+        x, y = self.convert_data_for_model(x, y)
+        outputs = self.model(x)
+        if self.is_siamese_inceptionV3:
+            loss, aux_loss = self.loss(outputs, y)
+            loss.backward(retain_graph=True)
+            running_loss = loss.item()
+            aux_loss.backward(retain_graph=True)
+            aux_running_loss = aux_loss.item()
+            self.optimizer.step()
+            predicted, aux_predicted = self.get_predicted(outputs)
+            collect_rate = self.calc_collect_rate(predicted, y[0])
+            aux_collect_rate = self.calc_collect_rate(aux_predicted, y[1])
+            return running_loss, collect_rate, aux_running_loss, aux_collect_rate
+        if self.is_inceptionV3:
+            loss = self.loss(outputs.logits, y)
+            self.optimizer.step()
+            running_loss = loss.item()
+            predicted = self.get_predicted(outputs.logits)
+            if outputs.aux_logits is not None:
+                aux_loss = self.__loss(outputs.aux_logits, y)
+                self.optimizer.step()
+            return running_loss, self.calc_collect_rate(predicted, y)
+
+    def add_output_param_to_batch_log_param(self, outs, batch_logs):
+        batch_logs["loss"] = outs[0]
+        batch_logs["accuracy"] = outs[1]
+        batch_logs["aux_loss"] = outs[2]
+        batch_logs["aux_accuracy"] = outs[3]
+        batch_logs["original_accuracy"] = outs[4][0]
+        batch_logs["aux_original_accuracy"] = outs[4][1]
+        return batch_logs

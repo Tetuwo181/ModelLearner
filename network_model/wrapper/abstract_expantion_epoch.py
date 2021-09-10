@@ -23,7 +23,7 @@ class AbsExpantionEpoch(ABC):
         return ProgbarLogger(count_mode='steps', stateful_metrics=self.stateful_metric_names)
 
     @abstractmethod
-    def train_on_batch(self, x, y, sample_weight=None):
+    def train_on_batch(self, x, y, sample_weight=None, data_preprocess=None):
         pass
 
     @abstractmethod
@@ -87,11 +87,14 @@ class AbsExpantionEpoch(ABC):
 
     def build_one_batch_dataset(self,
                                 output_generator,
-                                data_preprocess=None):
-
-        x, y, sample_weight = self.build_raw_one_batch_dataset(output_generator)
-        if data_preprocess is not None:
-            x, y = data_preprocess(x, y)
+                                data_preprocess=None,
+                                will_get_original: bool = True):
+        original_x, original_y, sample_weight = self.build_raw_one_batch_dataset(output_generator)
+        if data_preprocess is None:
+            return original_x, original_y, sample_weight
+        x, y = data_preprocess(original_x, original_y)
+        if will_get_original:
+            return x, y, sample_weight, original_x, original_y
         return x, y, sample_weight
 
     def get_callbacks_for_expantion(self, temp_best_path, save_weights_only=False):
@@ -131,25 +134,62 @@ class AbsExpantionEpoch(ABC):
         })
         return callbacks, will_validate
 
-    def one_batch(self,
-                  output_generator,
-                  batch_index: int,
-                  steps_done: int,
-                  callbacks: CallbackList,
-                  data_preprocess=None):
-        x, y, sample_weight = self.build_one_batch_dataset(output_generator,
-                                                           data_preprocess)
+    def init_for_one_batch(self,
+                           output_generator,
+                           batch_index: int,
+                           callbacks: CallbackList,
+                           data_preprocess=None):
+        got_params = self.build_one_batch_dataset(output_generator,
+                                                  data_preprocess,
+                                                  True)
+        # build batch logs
+        batch_logs = {}
+        callbacks.on_batch_begin(batch_index, batch_logs)
+        x, y, sample_weight, original_x, original_y = got_params
+        return x, y, sample_weight, original_x, original_y, batch_logs
+
+    def run_one_batch_base(self,
+                           output_generator,
+                           batch_index: int,
+                           callbacks: CallbackList,
+                           data_preprocess=None):
+        x, y, sample_weight, original_x, original_y, batch_logs = self.init_for_one_batch(output_generator,
+                                                                                          batch_index,
+                                                                                          callbacks,
+                                                                                          data_preprocess)
         # build batch logs
         batch_logs = {}
         callbacks.on_batch_begin(batch_index, batch_logs)
 
         outs = self.train_on_batch(x,
                                    y,
-                                   sample_weight=sample_weight)
+                                   sample_weight=None,
+                                   data_preprocess=data_preprocess)
+        return x, y,  original_x, original_y, outs, batch_logs
+
+    def run_after_finished_batch(self,
+                                 outs,
+                                 batch_logs,
+                                 callbacks,
+                                 batch_index: int,
+                                 steps_done: int,
+                                 ):
         batch_logs = self.add_output_param_to_batch_log_param(outs, batch_logs)
 
         callbacks.on_batch_end(batch_index, batch_logs)
         return batch_index+1, steps_done+1
+
+    def one_batch(self,
+                  output_generator,
+                  batch_index: int,
+                  steps_done: int,
+                  callbacks: CallbackList,
+                  data_preprocess=None):
+        x, y, original_x, original_y, outs, batch_logs = self.run_one_batch_base(output_generator,
+                                                                                 batch_index,
+                                                                                 callbacks,
+                                                                                 data_preprocess)
+        return self.run_after_finished_batch(outs, batch_logs, callbacks, batch_index, steps_done)
 
     def build_val_enqueuer(self, validation_data):
         will_validate = bool(validation_data)
