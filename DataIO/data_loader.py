@@ -8,6 +8,7 @@ from util_types import two_dim
 from typing import Optional
 from numba import jit
 from enum import Enum
+import face_recognition
 
 img_size, size_converter = two_dim.init_pair_type(int)
 
@@ -171,3 +172,30 @@ def sampling_real_data_set(batch_num: int, img_set: np.ndarray) -> np.ndarray:
      """
     chosen_id_set = np.random.randint(0, img_set.shape[0], batch_num)
     return img_set[chosen_id_set]
+
+
+def encode(frame):
+    """
+    イメージをdlibを用いたface landmarkに変換する
+    :param frame: イメージ
+    return dlibによって変換された face landmarkの値
+    """
+    # Detect and encode face inside a frame
+    face_encodings = face_recognition.face_encodings(frame)
+    if len(face_encodings) > 0:
+        return np.array(face_encodings[0])
+
+    return np.array()
+
+def load_data_in_dir_as_dlib(dir_path: str):
+    """
+    指定したディレクトリに存在するデータを読み込む
+    :param dir_path: 画像データの格納されているディレクトリ。
+    :return: numpy形式の dlib face landmar（1次元ndarray）
+    """
+    print("load", dir_path)
+    img_path_set = [os.path.join(dir_path,  data_name) for data_name in os.listdir(dir_path)]
+    img_set = [load_img(img_path, img_resize_val, color) for img_path in img_path_set]
+    if normalize_type == NormalizeType.NotNormalize:
+        return np.array(img_set)
+    return normalise_img_set(np.array(img_set), normalize_type)
