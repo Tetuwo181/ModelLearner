@@ -191,11 +191,9 @@ def load_data_in_dir_as_dlib(dir_path: str):
     """
     指定したディレクトリに存在するデータを読み込む
     :param dir_path: 画像データの格納されているディレクトリ。
-    :return: numpy形式の dlib face landmar（1次元ndarray）
+    :return: ndarray形式の dlib face landmarkのndarray（2次元ndarray）
     """
     print("load", dir_path)
     img_path_set = [os.path.join(dir_path,  data_name) for data_name in os.listdir(dir_path)]
-    img_set = [load_img(img_path, img_resize_val, color) for img_path in img_path_set]
-    if normalize_type == NormalizeType.NotNormalize:
-        return np.array(img_set)
-    return normalise_img_set(np.array(img_set), normalize_type)
+    img_set = [encode(load_img(img_path)) for img_path in img_path_set]
+    return np.array(img_set)
