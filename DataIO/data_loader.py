@@ -195,5 +195,5 @@ def load_data_in_dir_as_dlib(dir_path: str):
     """
     print("load", dir_path)
     img_path_set = [os.path.join(dir_path,  data_name) for data_name in os.listdir(dir_path)]
-    img_set = [encode(load_img(img_path)) for img_path in img_path_set]
+    img_set = [encode_face_to_dlib_landmarks(load_img(img_path)) for img_path in img_path_set]
     return np.array(img_set)
