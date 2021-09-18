@@ -174,7 +174,7 @@ def sampling_real_data_set(batch_num: int, img_set: np.ndarray) -> np.ndarray:
     return img_set[chosen_id_set]
 
 
-def encode(frame):
+def encode_face_to_dlib_landmarks(frame) -> np.ndarray:
     """
     イメージをdlibを用いたface landmarkに変換する
     :param frame: イメージ
