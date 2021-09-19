@@ -49,7 +49,6 @@ class PytorchCheckpoint(Callback):
         current = logs.get(self.monitor)
         if self.monitor_op(current, self.best):
             self.best = current
-            self.__base_model.to("cpu")
             self.save_model()
 
     def on_epoch_end(self, epoch, logs=None):
