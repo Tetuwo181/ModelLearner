@@ -38,27 +38,25 @@ class PytorchCheckpoint(Callback):
                 self.monitor_op = np.less
                 self.best = np.Inf
 
+    def save_model(self):
+        if self.save_weights_only:
+            torch.save(self.__base_model.state_dict(), self.filepath)
+        else:
+            model_trace = torch.jit.trace(self.__base_model, self.__sample_data)
+            model_trace.save(self.filepath)
+
+    def save_model_best_only(self, logs):
+        current = logs.get(self.monitor)
+        if self.monitor_op(current, self.best):
+            self.best = current
+            self.__base_model.to("cpu")
+            self.save_model()
+
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
         if self.save_best_only:
-            current = logs.get(self.monitor)
-            if self.monitor_op(current, self.best):
-                self.best = current
-                self.__base_model.to("cpu")
-                if self.save_weights_only:
-                    model_trace = torch.jit.trace(self.__base_model, self.__sample_data)
-                    model_trace.save(self.filepath)
-                else:
-                    model_trace = torch.jit.trace(self.__base_model, self.__sample_data)
-                    model_trace.save(self.filepath)
-        else:
-            self.__base_model.to("cpu")
-            if self.save_weights_only:
-                model_trace = torch.jit.trace(self.__base_model, self.__sample_data)
-                model_trace.save(self.filepath)
-            else:
-                model_trace = torch.jit.trace(self.__base_model, self.__sample_data)
-                model_trace.save(self.filepath)
+            return self.save_model_best_only(logs)
+        return self.save_model()
 
     @property
     def base_model(self):
