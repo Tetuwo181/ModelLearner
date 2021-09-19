@@ -38,18 +38,15 @@ class PytorchCheckpoint(Callback):
                 self.monitor_op = np.less
                 self.best = np.Inf
 
-    def save_model(self):
-        if self.save_weights_only:
-            torch.save(self.__base_model.state_dict(), self.filepath)
-        else:
-            model_trace = torch.jit.trace(self.__base_model, self.__sample_data)
-            model_trace.save(self.filepath)
+    def save_model(self, target_base_model=None):
+        target_model = self.__base_model if target_base_model is None else target_base_model
+        return self.save(target_model)
 
-    def save_model_best_only(self, logs):
+    def save_model_best_only(self, logs, target_base_model=None):
         current = logs.get(self.monitor)
         if self.monitor_op(current, self.best):
             self.best = current
-            self.save_model()
+            self.save_model(target_base_model)
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
@@ -68,6 +65,14 @@ class PytorchCheckpoint(Callback):
     @property
     def sample_data(self):
         return self.__sample_data
+
+    def save(self, target_model):
+        target_model.to("cpu")
+        if self.save_weights_only:
+            torch.save(target_model.state_dict(), self.filepath)
+        else:
+            model_trace = torch.jit.trace(target_model, self.__sample_data)
+            model_trace.save(self.filepath)
 
 
 class PytorchSiameseCheckpoint(PytorchCheckpoint):
@@ -97,22 +102,6 @@ class PytorchSiameseCheckpoint(PytorchCheckpoint):
         # super(PytorchSiameseCheckpoint, self).on_epoch_end(epoch, logs)
         record_model = self.base_model.original_model
         if self.save_best_only:
-            current = logs.get(self.monitor)
-            if self.monitor_op(current, self.best):
-                self.best = current
-                record_model.to("cpu")
-                if self.save_weights_only:
-                    model_trace = torch.jit.trace(record_model, self.sample_data[0])
-                    model_trace.save(self.original_model_path)
-                else:
-                    model_trace = torch.jit.trace(record_model, self.sample_data[0])
-                    model_trace.save(self.original_model_path)
-        else:
-            self.__base_model.to("cpu")
-            if self.save_weights_only:
-                model_trace = torch.jit.trace(self.__base_model, self.sample_data[0])
-                model_trace.save(self.original_model_path)
-            else:
-                model_trace = torch.jit.trace(self.__base_model, self.sample_data[0])
-                model_trace.save(self.original_model_path)
+            return self.save_model_best_only(logs, record_model)
+        self.save(record_model)
 
