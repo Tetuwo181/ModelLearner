@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import os
 
-from typing import Tuple, List, Callable, Union
+from typing import  Callable, Union
 from typing import Optional
 import keras.callbacks
 from keras.preprocessing.image import ImageDataGenerator
@@ -14,13 +16,13 @@ from network_model.builder.pytorch_builder import PytorchModelBuilder
 class ModelLearner(AbsModelLearner):
 
     def __init__(self,
-                 model_builder: Union[ModelBuilder, PytorchModelBuilder],
+                 model_builder: ModelBuilder | PytorchModelBuilder,
                  train_image_generator: ImageDataGenerator,
                  test_image_generator: ImageDataGenerator,
-                 class_list: List[str],
+                 class_list: list[str],
                  normalize_type: NormalizeType = NormalizeType.Div255,
-                 callbacks: Optional[List[keras.callbacks.Callback]] = None,
-                 image_size: Tuple[int, int] = (224, 224),
+                 callbacks: list[keras.callbacks.Callback] | None = None,
+                 image_size: tuple[int, int] = (224, 224),
                  train_dir_name: str = "train",
                  validation_name: str = "validation",
                  will_save_h5: bool = True,
@@ -109,6 +111,7 @@ class ModelLearner(AbsModelLearner):
                     result_name: str,
                     tmp_model_path: str = None,
                     monitor: str = "") -> md.ModelForManyData:
+        print("tmp_model_path:", tmp_model_path)
         model_builder_input = self.class_num if tmp_model_path is None else tmp_model_path
         build_result = self.model_builder(model_builder_input)
         return self.build_model_from_result(build_result,

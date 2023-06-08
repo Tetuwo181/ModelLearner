@@ -1,15 +1,16 @@
-from keras.layers import Lambda, Activation, Input
-from keras.losses import binary_crossentropy
+from __future__ import annotations
+from tensorflow.keras.layers import Lambda, Activation, Input
+from tensorflow.keras.losses import binary_crossentropy
 import keras.engine.training
-from keras.optimizers import Optimizer, SGD
-from keras.models import Model
+from tensorflow.keras.optimizers import Optimizer, SGD
+from tensorflow.keras.models import Model
 from network_model.build_model import builder as base_model_builder
-from typing import Optional, List, Union, Tuple, Callable
+from typing import Optional, List, Callable
 from network_model.model_for_distillation import ModelForDistillation
 from network_model.model_base.tempload import builder as temp_loader
 
 
-DistllationModelIncubator = Callable[[str, List[str]], ModelForDistillation]
+DistllationModelIncubator = Callable[[str, list[str]], ModelForDistillation]
 
 
 def fix_weight(model):
@@ -57,7 +58,7 @@ class DistllationModelBuilder(object):
         return Lambda(self.knowledge_distillation_loss, output_shape=(1,), name='kd_')
 
     def build_teacher_model(self,
-                            teacher_base: keras.engine.training.Model,
+                            teacher_base: tensorflow.keras.engine.training.Model,
                             loss: str = 'categorical_crossentropy',
                             optimizer: Optimizer = SGD()):
         teacher_model = fix_weight(teacher_base)
@@ -70,7 +71,7 @@ class DistllationModelBuilder(object):
 
     def build_student_model(self,
                             input_layer,
-                            student_base: keras.engine.training.Model,
+                            student_base: tensorflow.keras.engine.training.Model,
                             loss: str = 'categorical_crossentropy',
                             optimizer: Optimizer = SGD()):
         output_layer = student_base(input_layer)
@@ -136,11 +137,11 @@ class DistllationModelBuilder(object):
         return load_model_from_name
 
     def build_model_builder_from_teacher_files(self,
-                                               teacher_bases_param: Union[str, Tuple[str, str]],
+                                               teacher_bases_param: str | tuple[str, str],
                                                teacher_optimizer: Optimizer = SGD(),
                                                student_optimizer: Optimizer = SGD(),
                                                loss: str = 'categorical_crossentropy',
-                                               callbacks: Optional[List[keras.callbacks.Callback]] = None,
+                                               callbacks: list[keras.callbacks.Callback] | None = None,
                                                monitor: str = "",
                                                will_save_h5: bool = True) -> DistllationModelIncubator:
         teacher_base = temp_loader(temp_paths=teacher_bases_param)

@@ -12,3 +12,4 @@ ConfigFiles/
 url.txt
 *.h5
 datasets
+logs

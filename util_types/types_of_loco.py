@@ -1,4 +1,5 @@
-from keras import optimizers
+from tensorflow import keras
+from tensorflow.keras import optimizers
 from typing import Union
 from util_types import two_dim
 
