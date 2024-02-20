@@ -1,7 +1,7 @@
 import keras.engine.training
 from keras.layers import Input, Dense
 from keras.layers import Concatenate
-from keras.optimizers import Optimizer, SGD
+from tensorflow.keras.optimizers import Optimizer, SGD
 from keras.models import Model
 from typing import List, Union, Optional, Tuple
 from network_model.model_base.tempload import builder_for_merge

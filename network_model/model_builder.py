@@ -6,7 +6,7 @@ from typing import List
 from typing import Union
 from util_types import types_of_loco
 from network_model.distillation.distillation_model_builder import DistllationModelIncubator
-from keras.optimizers import Optimizer, SGD
+from tensorflow.keras.optimizers import Optimizer, SGD
 from network_model.build_model import builder, builder_with_merge
 from model_merger.keras.merge_model import ModelMerger
 from keras.layers import Concatenate

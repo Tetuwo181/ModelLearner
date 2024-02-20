@@ -1,5 +1,5 @@
 import keras.engine.training
-from keras.optimizers import Optimizer, SGD
+from tensorflow.keras.optimizers import Optimizer, SGD
 from typing import Union, Tuple, Optional, List
 from keras.models import load_model, model_from_json, model_from_yaml
 import json

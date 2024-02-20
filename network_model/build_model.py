@@ -2,7 +2,7 @@
 import keras.engine.training
 from util_types import types_of_loco
 import importlib
-from keras.optimizers import Optimizer, SGD
+from tensorflow.keras.optimizers import Optimizer, SGD
 from model_merger.keras.merge_model import ModelMerger, TrainableModelIndex
 from typing import List, Tuple, Union, Optional
 from keras.layers import Concatenate
