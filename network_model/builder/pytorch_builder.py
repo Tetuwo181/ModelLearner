@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-import keras.engine.training
+from __future__ import annotations
+from tensorflow.keras import Model
 from typing import Callable
 from typing import Tuple
 from typing import List
@@ -22,11 +23,9 @@ from model_merger.pytorch.proc.shiamese_loss import SiameseLoss, SiameseLossForI
 from model_merger.pytorch.siamese import SiameseNetworkPT
 
 
-ModelBuilderResult = Union[keras.engine.training.Model, List[Callback]]
+ModelBuilderResult = Model | list[Callback]
 
-ModelBuilder = Union[Callable[[int], ModelBuilderResult],
-                     Callable[[Union[str, Tuple[str, str]]], keras.engine.training.Model],
-                     DistllationModelIncubator]
+ModelBuilder = Callable[[int], ModelBuilderResult] | Callable[[str | tuple[str, str]], Model] | DistllationModelIncubator
 
 OptimizerBuilder = Callable[[Module], Optimizer]
 

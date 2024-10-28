@@ -1,11 +1,11 @@
 from __future__ import annotations
-
+from tensorflow.keras import Model
 import os
 
 from typing import  Callable, Union
 from typing import Optional
 import keras.callbacks
-from keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from network_model.wrapper.keras import many_data as md
 from network_model.model_builder import ModelBuilder
 from DataIO.data_loader import NormalizeType
@@ -111,7 +111,6 @@ class ModelLearner(AbsModelLearner):
                     result_name: str,
                     tmp_model_path: str = None,
                     monitor: str = "") -> md.ModelForManyData:
-        print("tmp_model_path:", tmp_model_path)
         model_builder_input = self.class_num if tmp_model_path is None else tmp_model_path
         build_result = self.model_builder(model_builder_input)
         return self.build_model_from_result(build_result,

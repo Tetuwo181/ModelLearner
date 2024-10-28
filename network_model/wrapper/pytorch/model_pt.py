@@ -17,7 +17,6 @@ import os
 from torch.nn import BCELoss, CrossEntropyLoss
 from network_model.wrapper.pytorch.util.checkpoint import PytorchCheckpoint, PytorchSiameseCheckpoint
 from model_merger.pytorch.siamese import SiameseNetworkPT
-from keras.utils.generic_utils import to_list
 from generator.transpose import transpose
 from generator.siamese_learner import SiameseLearnerDataBuilder
 from generator.siamese_learner_for_inceptionv3_age import SiameseLearnerDataBuilderForInceptionV3
@@ -636,7 +635,7 @@ class ModelForPytorch(AbstractModel, AbsExpantionEpoch):
                                                  steps_done,
                                                  sample_weight=sample_weight,
                                                  data_preprocess=data_preprocess)
-                val_outs = to_list(val_outs)
+                val_outs = np.array(val_outs)
                 outs_per_batch.append(val_outs)
                 if x is None or len(x) == 0:
                     # Handle data tensors support when no input given
@@ -740,7 +739,7 @@ class ModelForPytorchSiamese(ModelForPytorch):
                                                  steps_done,
                                                  sample_weight=sample_weight,
                                                  data_preprocess=data_preprocess)
-                val_outs = to_list(val_outs)
+                val_outs = np.array(val_outs)
                 outs_per_batch.append(val_outs)
                 if x is None or len(x) == 0:
                     # Handle data tensors support when no input given

@@ -1,6 +1,7 @@
+from __future__ import annotations
+from tensorflow.keras import Model
 import keras.callbacks
-from keras.callbacks import ProgbarLogger, BaseLogger, History
-from keras.utils.generic_utils import to_list
+from keras.callbacks import ProgbarLogger, History
 import numpy as np
 from network_model.wrapper.abstract_expantion_epoch import AbsExpantionEpoch
 from network_model.wrapper.keras.abstract_keras_wrapper import AbstractKerasWrapper
@@ -13,7 +14,7 @@ import os
 from DataIO import data_loader as dl
 from network_model.wrapper.abstract_model import build_record_path
 from util.keras_version import is_new_keras
-ModelPreProcessor = Optional[Callable[[keras.engine.training.Model],  keras.engine.training.Model]]
+ModelPreProcessor = Optional[Callable[[Model],  Model]]
 
 
 class ModelForManyData(AbstractKerasWrapper, AbsExpantionEpoch):
@@ -22,13 +23,13 @@ class ModelForManyData(AbstractKerasWrapper, AbsExpantionEpoch):
     """
 
     def __init__(self,
-                 model_base: keras.engine.training.Model,
-                 class_set: List[str],
-                 callbacks: Optional[List[keras.callbacks.Callback]] = None,
+                 model_base: Model,
+                 class_set: list[str],
+                 callbacks: list[keras.callbacks.Callback] | None = None,
                  monitor: str = "",
                  will_save_h5: bool = True,
                  preprocess_for_model: ModelPreProcessor = None,
-                 after_learned_process: Optional[Callable[[None], None]] = None):
+                 after_learned_process: Callable[[None], None] | None = None):
         """
 
         :param model_base: kerasで構築したモデル
@@ -40,7 +41,7 @@ class ModelForManyData(AbstractKerasWrapper, AbsExpantionEpoch):
         :param after_learned_process: モデル学習後の後始末
         """
         self.__model = model_base
-        shape = model_base.input[0].shape.as_list() if type(model_base.input) is list else model_base.input.shape.as_list()
+        shape = model_base.input[0].shape if type(model_base.input) is list else model_base.input.shape
         super(ModelForManyData, self).__init__(shape,
                                                class_set,
                                                callbacks,
@@ -53,10 +54,6 @@ class ModelForManyData(AbstractKerasWrapper, AbsExpantionEpoch):
     def callbacks_metric(self):
         out_labels = self.model.metrics_names
         return ['val_' + n for n in out_labels]
-
-    @property
-    def base_logger(self):
-        return BaseLogger(stateful_metrics=self.stateful_metric_names)
 
     @property
     def progbar_logger(self):
@@ -83,8 +80,8 @@ class ModelForManyData(AbstractKerasWrapper, AbsExpantionEpoch):
                       image_generator,
                       epochs: int,
                       validation_data=None,
-                      steps_per_epoch: Optional[int] = None,
-                      validation_steps: Optional[int] = None,
+                      steps_per_epoch: int | None = None,
+                      validation_steps: int | None = None,
                       temp_best_path: str = "",
                       save_weights_only: bool = False,
                       will_use_multi_inputs_per_one_image: bool = False,

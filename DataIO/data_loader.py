@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from keras.utils import np_utils
+from tensorflow.keras.utils import to_categorical
 import os
 import cv2
 import numpy as np
@@ -132,7 +132,7 @@ def label_encoder(class_set: List[str]):
         :return: エンコードされたクラス名
         """
         label_encoded = class_set.index(base_class)
-        return np_utils.to_categorical(label_encoded, len(class_set))
+        return to_categorical(label_encoded, len(class_set))
     return encode
 
 

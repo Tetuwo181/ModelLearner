@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-import keras.engine.training
+from __future__ import annotations
+from tensorflow.keras import Model
 from util_types import types_of_loco
 import importlib
 from tensorflow.keras.optimizers import Optimizer, SGD
@@ -14,7 +15,7 @@ def builder(
         channels: int = 3,
         optimizer: Optimizer = SGD(),
         model_name: str = "model1",
-) -> keras.engine.training.Model:
+) -> Model:
     """
     モデルを作成する
     :param class_num : 出力するクラス数
@@ -32,7 +33,7 @@ def builder_pt(
         class_num: int,
         img_size: types_of_loco.input_img_size = 28,
         model_name: str = "model1",
-) -> keras.engine.training.Model:
+) -> Model:
     """
     モデルを作成する
     :param class_num : 出力するクラス数
@@ -52,19 +53,19 @@ def builder_with_merge(
         channels: int = 3,
         optimizer: Optimizer = SGD(),
         model_name: str = "model1",
-) -> keras.engine.training.Model:
+) -> Model:
     models = [builder(class_num, img_size, channels, optimizer,  model_name) for _ in range(base_model_num)]
     return model_merger.merge_models_separately_input(models, class_num)
 
 
 def build_by_h5files(
-                     h5_paths: List[Union[str, Tuple[str, str]]],
-                     trainable_model: Union[TrainableModelIndex, List[TrainableModelIndex]] = True,
+                     h5_paths: list[str | tuple[str, str]],
+                     trainable_model: TrainableModelIndex | list[TrainableModelIndex] = True,
                      output_num: Optional[int] = None,
-                     middle_layer_neuro_nums: Optional[List[Tuple[int, str]]] = None,
+                     middle_layer_neuro_nums: list[tuple[int, str]] | None = None,
                      merge_per_model_name: str = 'model',
                      model_merger: ModelMerger = ModelMerger(Concatenate())
-) -> keras.engine.training.Model:
+) -> Model:
     return model_merger.merge_models_from_model_files(h5_paths,
                                                       trainable_model,
                                                       output_num,

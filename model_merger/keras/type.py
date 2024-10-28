@@ -1,7 +1,8 @@
+from __future__ import annotations
 from keras.layers import Add, Subtract, Multiply, Average, Maximum, Minimum, Concatenate, Dot
-from tensorflow.python.framework.ops import Tensor
+from tensorflow import Tensor
 from typing import Union, Callable
 
-Merge = Union[Add, Subtract, Multiply, Average, Minimum, Maximum, Concatenate, Dot]
-Loss = Union[str, Callable[[Tensor, Tensor], Tensor]]
-TrainableModelIndex = Union[bool, int]
+Merge = Add | Subtract | Multiply | Average | Minimum | Maximum | Concatenate | Dot
+Loss = str | Callable[[Tensor, Tensor], Tensor]
+TrainableModelIndex = bool | int

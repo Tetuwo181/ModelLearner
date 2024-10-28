@@ -1,9 +1,11 @@
+from __future__ import annotations
+from tensorflow.keras import Model
+
 from keras.applications.mobilenet_v2 import MobileNetV2
 from keras.layers import Flatten
 from keras.layers import Dense
 from keras.models import Model
 from tensorflow.keras import optimizers
-import keras.engine.training
 from typing import Union
 from typing import Tuple
 from util_types import types_of_loco
@@ -14,7 +16,7 @@ def builder(
             img_size: types_of_loco.input_img_size = 28,
             channels: int = 3,
             optimizer=optimizers.SGD()
-            ) -> keras.engine.training.Model:
+            ) -> Model:
     """
     ResNet50
     ImageNetで重みを初期化

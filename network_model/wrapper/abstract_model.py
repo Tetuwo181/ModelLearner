@@ -1,4 +1,5 @@
-import keras.engine.training
+from __future__ import annotations
+from tensorflow.keras import Model
 import keras.callbacks
 import numpy as np
 from typing import List
@@ -15,11 +16,11 @@ from util.keras_version import is_new_keras
 
 class AbstractModel(ABC):
     def __init__(self,
-                 class_set: List[str],
-                 callbacks: Optional[List[keras.callbacks.Callback]] = None,
+                 class_set: list[str],
+                 callbacks: list[keras.callbacks.Callback] | None = None,
                  monitor: str = "",
                  preprocess_for_model=None,
-                 after_learned_process: Optional[Callable[[None], None]] = None):
+                 after_learned_process: Callable[[None], None] | None = None):
         """
 
          :param class_set: クラスの元となったリスト
@@ -73,7 +74,7 @@ class AbstractModel(ABC):
         best_model_recorder = self.build_model_checkpoint(temp_best_path, save_weights_only)
         return self.__callbacks if self.__callbacks is None else self.__callbacks + [best_model_recorder]
 
-    def predict(self, data: np.ndarray) -> Tuple[np.array, np.array]:
+    def predict(self, data: np.ndarray) -> tuple[np.array, np.array]:
         """
         モデルの適合度から該当するクラスを算出する
         :param data: 算出対象となるデータ
@@ -83,7 +84,7 @@ class AbstractModel(ABC):
         class_name_set = np.array([self.__class_set[index] for index in result_set])
         return result_set, class_name_set
 
-    def predict_top_n(self, data: np.ndarray, top_num: int = 5) -> List[Tuple[np.array, np.array, np.array]]:
+    def predict_top_n(self, data: np.ndarray, top_num: int = 5) -> list[tuple[np.array, np.array, np.array]]:
         """
         適合度が高い順に車両形式を取得する
         :param data: 算出対象となるデータ
@@ -108,7 +109,7 @@ class AbstractModel(ABC):
         diff = teacher_label_set - predicted_index
         return np.sum(diff == 0) / len(data_set)
 
-    def get_predicted_upper(self, predicted_result: np.ndarray, top_num: int = 5) -> Tuple[
+    def get_predicted_upper(self, predicted_result: np.ndarray, top_num: int = 5) -> tuple[
         np.array, np.array, np.array]:
         """
         予測した結果の数値からふさわしい形式を指定した上位n個だけ取り出す
@@ -167,7 +168,7 @@ class AbstractModel(ABC):
         self.record_model(result_dir_name, dir_path, model_name)
         self.record_conf_json(result_dir_name, dir_path, normalize_type, model_name)
 
-    def run_preprocess_model(self, model: keras.engine.training.Model) -> keras.engine.training.Model:
+    def run_preprocess_model(self, model: Model) -> Model:
         if self.preprocess_for_model is None:
             return model
         return self.preprocess_for_model(model)

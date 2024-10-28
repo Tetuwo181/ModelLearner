@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-import keras.engine.training
+from __future__ import annotations
+from tensorflow.keras import Model
 from typing import Callable
 from typing import Tuple
 from typing import List
@@ -17,12 +18,10 @@ from model_merger.pytorch.proc.distance.calculator import L1Norm
 import torch.nn
 from network_model.builder import keras_builder, pytorch_builder
 
-DLModel = Union[keras.engine.training.Model, torch.nn.Module]
-ModelBuilderResult = Union[DLModel, Tuple[DLModel, List[Callback]], Tuple[DLModel, Callable[[str], Callback]]]
+DLModel = Model | torch.nn.Module
+ModelBuilderResult = DLModel | tuple[DLModel, list[Callback]] | tuple[DLModel, Callable[[str], Callback]]
 
-ModelBuilder = Union[Callable[[int], ModelBuilderResult],
-                     Callable[[Union[str, Tuple[str, str]]], ModelBuilderResult],
-                     DistllationModelIncubator]
+ModelBuilder = Callable[[int], ModelBuilderResult] | Callable[[str | tuple[str, str]], ModelBuilderResult] | DistllationModelIncubator
 
 
 def init_input_image(size: types_of_loco.input_img_size):

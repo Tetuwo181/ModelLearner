@@ -1,10 +1,11 @@
+from __future__ import annotations
 import os
 import shutil
 import random
 from typing import Tuple, List, Union, Callable
 from typing import Optional
 import keras.callbacks
-from keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from network_model.wrapper.keras import many_data as md
 from network_model.model_builder import ModelBuilder
 from DataIO.data_loader import count_data_num_in_dir
@@ -101,7 +102,7 @@ def image_dir_train_test_split(original_dir, base_dir, train_size=0.8, has_built
 class AbsModelLearner(ABC):
 
     def __init__(self,
-                 model_builder: Union[ModelBuilder, PytorchModelBuilder],
+                 model_builder: ModelBuilder | PytorchModelBuilder,
                  train_image_generator: ImageDataGenerator,
                  test_image_generator: ImageDataGenerator,
                  class_list: List[str],

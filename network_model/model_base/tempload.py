@@ -1,20 +1,17 @@
-import keras.engine.training
+from __future__ import annotations
+from tensorflow.keras import Model
 from tensorflow.keras.optimizers import Optimizer, SGD
 from typing import Union, Tuple, Optional, List
-from keras.models import load_model, model_from_json, model_from_yaml
+from keras.models import load_model, model_from_json
 import json
 import yaml
 import os
 
 
-def load_model_arc(model_arc_path: str) -> keras.engine.training.Model:
+def load_model_arc(model_arc_path: str) -> Model:
     _, ext = os.path.splitext(model_arc_path)
-    is_yaml = ext == '.yaml' or ext == '.yml'
 
-    def build_from_yaml(model_str: str) -> keras.engine.training.Model:
-        return model_from_yaml(model_str)
-
-    def build_from_json(model_str: str) -> keras.engine.training.Model:
+    def build_from_json(model_str: str) -> Model:
         return model_from_json(model_str)
 
     build_model = build_from_yaml if is_yaml else build_from_json
@@ -27,7 +24,7 @@ class TempLoader:
 
     def __init__(self,
                  loss: str = "categorical_crossentropy",
-                 metrics: Optional[List[str]] = None,
+                 metrics: list[str] | None = None,
                  will_show_summary: bool = True):
         if metrics is None:
             metrics = ['accuracy']

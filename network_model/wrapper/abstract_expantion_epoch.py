@@ -1,6 +1,4 @@
-from keras.callbacks import CallbackList, ProgbarLogger, BaseLogger, History
-from keras.utils.data_utils import OrderedEnqueuer
-from keras.utils.generic_utils import to_list
+from keras.callbacks import CallbackList, ProgbarLogger, History
 from abc import ABC, abstractmethod
 from typing import Tuple
 from typing import Optional
@@ -13,10 +11,6 @@ class AbsExpantionEpoch(ABC):
     @property
     def stateful_metric_names(self):
         return ["loss", "accuracy", "val_loss", "val_accuracy"]
-
-    @property
-    def base_logger(self):
-        return BaseLogger(stateful_metrics=self.stateful_metric_names)
 
     @property
     def progbar_logger(self):
@@ -121,7 +115,7 @@ class AbsExpantionEpoch(ABC):
         self.set_model_history()
         will_validate = bool(validation_data)
         # self.build_model_functions(will_validate)
-        build_callbacks = [self.base_logger, self.progbar_logger]
+        build_callbacks = [self.progbar_logger]
         raw_callbacks = build_callbacks + self.get_callbacks_for_expantion(temp_best_path, save_weights_only)
         callbacks = CallbackList(raw_callbacks)
         callbacks.set_model(self.model)
@@ -191,17 +185,6 @@ class AbsExpantionEpoch(ABC):
                                                                                  data_preprocess)
         return self.run_after_finished_batch(outs, batch_logs, callbacks, batch_index, steps_done)
 
-    def build_val_enqueuer(self, validation_data):
-        will_validate = bool(validation_data)
-        if will_validate is False:
-            return None, None, None
-        val_data = validation_data
-        val_enqueuer = OrderedEnqueuer(
-            val_data,
-            use_multiprocessing=False)
-        validation_steps = len(val_data)
-        return val_data, val_enqueuer, validation_steps if validation_steps is not None else len(validation_data)
-
     def run_one_epoch(self,
                       epoch: int,
                       epoch_logs,
@@ -247,7 +230,7 @@ class AbsExpantionEpoch(ABC):
                 x, y, sample_weight = self.build_one_batch_dataset(val_enqueuer_gen,
                                                                    data_preprocess)
                 val_outs = self.evaluate(x, y, sample_weight=sample_weight)
-                val_outs = to_list(val_outs)
+                val_outs = np.array(val_outs)
                 outs_per_batch.append(val_outs)
                 if x is None or len(x) == 0:
                     # Handle data tensors support when no input given
@@ -270,55 +253,3 @@ class AbsExpantionEpoch(ABC):
             steps_done += 1
             batch_sizes.append(batch_size)
         return self.add_output_val_param_to_epoch_log_param(outs_per_batch, batch_sizes, epoch_logs)
-
-    def fit_generator_for_expantion(self,
-                                    image_generator,
-                                    epochs: int,
-                                    validation_data=None,
-                                    steps_per_epoch: Optional[int] = None,
-                                    validation_steps: Optional[int] = None,
-                                    temp_best_path: str = "",
-                                    save_weights_only: bool = False,
-                                    data_preprocess=None):
-        steps_per_epoch = steps_per_epoch if steps_per_epoch is None else len(image_generator)
-        callbacks, will_validate = self.build_callbacks_for_expantion(epochs,
-                                                                      temp_best_path,
-                                                                      steps_per_epoch,
-                                                                      validation_data,
-                                                                      save_weights_only)
-        callbacks.on_train_begin()
-        enqueuer = None
-        val_enqueuer = None
-        try:
-            val_data, val_enqueuer, validation_steps = self.build_val_enqueuer(validation_data)
-            enqueuer = OrderedEnqueuer(
-                image_generator,
-                use_multiprocessing=False)
-            enqueuer.start(workers=1, max_queue_size=10)
-            output_generator = enqueuer.get()
-
-            self.set_model_stop_training(False)
-            # Construct epoch logs.
-            epoch_logs = {}
-            epoch = 0
-            while epoch < epochs:
-                epoch, epoch_logs = self.run_one_epoch(epoch,
-                                                       epoch_logs,
-                                                       steps_per_epoch,
-                                                       output_generator,
-                                                       val_data,
-                                                       validation_steps,
-                                                       callbacks,
-                                                       data_preprocess)
-
-        finally:
-
-            if enqueuer is not None:
-                enqueuer.stop()
-            #finally:
-            #    if val_enqueuer is not None:
-            #        print(type(val_enqueuer))
-            #        val_enqueuer.stop()
-
-        callbacks.on_train_end()
-        return self.get_model_history()

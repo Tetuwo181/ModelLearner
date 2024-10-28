@@ -1,4 +1,5 @@
-import keras.engine.training
+from __future__ import annotations
+from tensorflow.keras import Model
 from keras.layers import Input, Dense
 from keras.layers import Concatenate
 from tensorflow.keras.optimizers import Optimizer, SGD
@@ -15,7 +16,7 @@ class ModelMerger:
                  merge_obj: Merge,
                  loss: Loss = "categorical_crossentropy",
                  optimizer: Optimizer = SGD(),
-                 metrics: Optional[List[str]] = None,
+                 metrics: list[str] | None = None,
                  output_activation: str = "softmax"):
         if metrics is None:
             metrics = ['accuracy']
@@ -26,8 +27,8 @@ class ModelMerger:
         self.__output_activation = output_activation
 
     @staticmethod
-    def set_model_trainable(base_model: keras.engine.training.Model,
-                            trainable: TrainableModelIndex) -> keras.engine.training.Model:
+    def set_model_trainable(base_model: Model,
+                            trainable: TrainableModelIndex) -> Model:
         if type(trainable) is bool:
             base_model.trainable = trainable
             return base_model
@@ -40,7 +41,7 @@ class ModelMerger:
         return self.__optimizer
 
     @property
-    def metrics(self) -> List[str]:
+    def metrics(self) -> list[str]:
         return self.__metrics
 
     @property
@@ -55,7 +56,7 @@ class ModelMerger:
     def output_activation(self):
         return self.__output_activation
 
-    def get_output_num(self, model: keras.engine.training.Model, output_num: Optional[int] = None):
+    def get_output_num(self, model: Model, output_num: int | None = None):
         if output_num is None:
             return model.output_shape[-1]
         if type(self.merge) is Concatenate:
@@ -63,9 +64,9 @@ class ModelMerger:
         return model.output_shape[-1]
 
     def merge_models(self,
-                     models: List[keras.engine.training.Model],
+                     models: list[Model],
                      output_num: Optional[int] = None,
-                     middle_layer_neuro_nums: Optional[List[Tuple[int, str]]] = None) -> keras.engine.training.Model:
+                     middle_layer_neuro_nums: list[tuple[int, str]] | None = None) -> Model:
         input_shape = tuple(models[0].input_shape[1:])
         print(input_shape)
         output_class_num = models[0].output_shape[-1] if output_num is None else output_num
@@ -97,9 +98,9 @@ class ModelMerger:
         return model
 
     def merge_models_separately_input(self,
-                                      models: List[keras.engine.training.Model],
+                                      models: list[Model],
                                       output_num: Optional[int] = None,
-                                      middle_layer_neuro_nums: Optional[List[Tuple[int, str]]] = None) -> keras.engine.training.Model:
+                                      middle_layer_neuro_nums: list[tuple[int, str]] | None = None) -> keras.engine.training.Model:
         models = add_layer_name_for_models(models)
         input_layer = [model.input for model in models]
         model_outputs = [model.output for model in models]
@@ -119,10 +120,10 @@ class ModelMerger:
         return self.compile(model)
 
     def merge_models_from_model_files(self,
-                                      h5_paths: List[Union[str, Tuple[str, str]]],
-                                      trainable_model: Union[TrainableModelIndex, List[TrainableModelIndex]] = True,
-                                      output_num: Optional[int] = None,
-                                      middle_layer_neuro_nums: Optional[List[Tuple[int, str]]] = None,
+                                      h5_paths: list[str | Tuple[str, str]],
+                                      trainable_model: TrainableModelIndex | list[TrainableModelIndex] = True,
+                                      output_num: int | None = None,
+                                      middle_layer_neuro_nums: list[tuple[int, str]] | None = None,
                                       merge_per_model_name: str = 'model') -> keras.engine.training.Model:
         models = [builder_for_merge(h5_path) for h5_path in h5_paths]
         are_trainable_models = trainable_model if type(trainable_model) is list else [trainable_model for _ in h5_paths]
@@ -135,13 +136,13 @@ class ModelMerger:
         return self.merge_models(models, output_num, middle_layer_neuro_nums)
 
 
-def add_layer_name_to_index(model: keras.engine.training.Model, index: int):
+def add_layer_name_to_index(model: Model, index: int):
     for layer in model.layers:
         layer._name = layer.name + "_" + str(index)
     return model
 
 
-def add_layer_name_for_models(models: List[keras.engine.training.Model]):
+def add_layer_name_for_models(models: list[Model]):
     for index, model in enumerate(models):
         add_layer_name_to_index(model, index)
     return models

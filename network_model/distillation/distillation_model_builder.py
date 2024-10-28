@@ -1,7 +1,7 @@
 from __future__ import annotations
 from tensorflow.keras.layers import Lambda, Activation, Input
 from tensorflow.keras.losses import binary_crossentropy
-import keras.engine.training
+from tensorflow.keras import Model
 from tensorflow.keras.optimizers import Optimizer, SGD
 from tensorflow.keras.models import Model
 from network_model.build_model import builder as base_model_builder
@@ -58,7 +58,7 @@ class DistllationModelBuilder(object):
         return Lambda(self.knowledge_distillation_loss, output_shape=(1,), name='kd_')
 
     def build_teacher_model(self,
-                            teacher_base: tensorflow.keras.engine.training.Model,
+                            teacher_base: Model,
                             loss: str = 'categorical_crossentropy',
                             optimizer: Optimizer = SGD()):
         teacher_model = fix_weight(teacher_base)
@@ -71,7 +71,7 @@ class DistllationModelBuilder(object):
 
     def build_student_model(self,
                             input_layer,
-                            student_base: tensorflow.keras.engine.training.Model,
+                            student_base: Model,
                             loss: str = 'categorical_crossentropy',
                             optimizer: Optimizer = SGD()):
         output_layer = student_base(input_layer)
@@ -109,7 +109,7 @@ class DistllationModelBuilder(object):
                             teacher_optimizer: Optimizer = SGD(),
                             student_optimizer: Optimizer = SGD(),
                             loss: str = 'categorical_crossentropy',
-                            callbacks: Optional[List[keras.callbacks.Callback]] = None,
+                            callbacks: list[keras.callbacks.Callback] | None = None,
                             monitor: str = "",
                             will_save_h5: bool = True) -> DistllationModelIncubator:
         class_num = teacher_base.output_shape[-1]
@@ -117,7 +117,7 @@ class DistllationModelBuilder(object):
         img_size = input_shape[0]
         channel = input_shape[-1]
 
-        def load_model_from_name(student_model_name: str, class_set: List[str]) -> ModelForDistillation:
+        def load_model_from_name(student_model_name: str, class_set: list[str]) -> ModelForDistillation:
             student_base = base_model_builder(class_num=class_num,
                                               img_size=img_size,
                                               channels=channel,

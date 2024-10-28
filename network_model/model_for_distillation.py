@@ -1,3 +1,5 @@
+from __future__ import annotations
+from tensorflow.keras import Model
 import keras.callbacks
 from typing import List
 from typing import Optional
@@ -10,15 +12,15 @@ from network_model.wrapper.abstract_model import AbstractModel, build_record_pat
 
 class ModelForDistillation(AbstractModel):
     def __init__(self,
-                 train_model: keras.engine.training.Model,
-                 student_model: keras.engine.training.Model,
-                 class_set: List[str],
-                 callbacks: Optional[List[keras.callbacks.Callback]] = None,
+                 train_model: Model,
+                 student_model: Model,
+                 class_set: list[str],
+                 callbacks: list[keras.callbacks.Callback] | None = None,
                  monitor: str = "",
                  will_save_h5: bool = True):
         self.__train_model = train_model
         self.__student_model = student_model
-        super().__init__(train_model.input.shape.as_list(),
+        super().__init__(train_model.input.shape,
                          class_set,
                          callbacks,
                          monitor,
@@ -31,9 +33,9 @@ class ModelForDistillation(AbstractModel):
     def fit_generator(self,
                       image_generator: FlowForDistillation,
                       epochs: int,
-                      validation_data: Optional[FlowForDistillation] = None,
-                      steps_per_epoch: Optional[int] = None,
-                      validation_steps: Optional[int] = None,
+                      validation_data: FlowForDistillation | None = None,
+                      steps_per_epoch: int | None = None,
+                      validation_steps: int | None = None,
                       temp_best_path: str = "",
                       save_weights_only: bool = False):
         """
@@ -67,13 +69,13 @@ class ModelForDistillation(AbstractModel):
     def test(self,
              image_generator: FlowForDistillation,
              epochs: int,
-             validation_data: Optional[FlowForDistillation] = None,
+             validation_data: FlowForDistillation | None = None,
              normalize_type: dl.NormalizeType = dl.NormalizeType.Div255,
              result_dir_name: str = None,
-             dir_path: str = None,
-             model_name: str = None,
-             steps_per_epoch: Optional[int] = None,
-             validation_steps: Optional[int] = None,
+             dir_path: str | None = None,
+             model_name: str | None = None,
+             steps_per_epoch: int | None = None,
+             validation_steps: int | None = None,
              save_weights_only: bool = False
              ):
         """
